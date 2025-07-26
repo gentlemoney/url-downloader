@@ -25,7 +25,7 @@ def detect_platform(url):
         return 'TikTok', 'fab fa-tiktok', '#000000'
     elif 'instagram.com' in url_lower or 'instagr.am' in url_lower:
         return 'Instagram', 'fab fa-instagram', '#E4405F'
-    elif 'reddit.com' in url_lower:
+    elif 'reddit.com' in url_lower or 'redd.it' in url_lower:
         return 'Reddit', 'fab fa-reddit', '#FF4500'
     elif 'twitter.com' in url_lower or 'x.com' in url_lower:
         return 'Twitter/X', 'fab fa-twitter', '#1DA1F2'
@@ -62,8 +62,12 @@ def get_platform_specific_options(platform):
         })
     elif platform == 'Reddit':
         base_options.update({
-            'format': 'best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/best[height<=1080]/best',
             'merge_output_format': 'mp4',
+            'extract_flat': False,
+            'ignoreerrors': True,  # Reddit은 일부 콘텐츠에 접근 제한이 있을 수 있음
+            'extractor_retries': 3,
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',  # Reddit은 User-Agent가 중요
         })
     elif platform == 'Twitter/X':
         base_options.update({
@@ -400,6 +404,7 @@ HTML_FORM = '''
           <div class="platform-item">
             <i class="fab fa-reddit" style="color: #FF4500;"></i>
             <span>Reddit</span>
+            <small style="color: #666; font-size: 0.8em;">(Videos, GIFs)</small>
           </div>
           <div class="platform-item">
             <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
@@ -413,6 +418,10 @@ HTML_FORM = '''
         <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9em; color: #856404;">
           <i class="fas fa-info-circle"></i>
           <strong>Instagram 팁:</strong> Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.
+        </div>
+        <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; font-size: 0.9em; color: #0c5460;">
+          <i class="fas fa-info-circle"></i>
+          <strong>Reddit 팁:</strong> Reddit Videos, GIFs, v.redd.it 링크를 지원합니다. 대부분 공개 콘텐츠입니다.
         </div>
       </div>
       
@@ -457,7 +466,7 @@ HTML_FORM = '''
             platform = 'Instagram';
             icon = 'fab fa-instagram';
             color = '#E4405F';
-          } else if (urlLower.includes('reddit.com')) {
+          } else if (urlLower.includes('reddit.com') || urlLower.includes('redd.it')) {
             platform = 'Reddit';
             icon = 'fab fa-reddit';
             color = '#FF4500';
