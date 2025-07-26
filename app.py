@@ -86,7 +86,7 @@ def get_platform_specific_options(platform):
         })
     elif platform == 'Reddit':
         base_options.update({
-            'format': 'best[ext=mp4]/best[height<=1080]/best',
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
             'extract_flat': False,
             'ignoreerrors': True,
