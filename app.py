@@ -111,22 +111,27 @@ def download_youtube_with_pytube(url, outtmpl):
         raise e
 
 def create_youtube_cookies():
-    """YouTube용 가짜 쿠키 파일을 생성합니다."""
+    """YouTube용 실제 브라우저 쿠키를 시뮬레이션합니다."""
     import tempfile
     import os
     
     try:
         with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix='.txt') as f:
+            # 더 현실적인 YouTube 쿠키 설정
             cookie_content = """# Netscape HTTP Cookie File
 # This is a generated file!  Do not edit.
 
-.youtube.com	TRUE	/	FALSE	0	VISITOR_INFO1_LIVE	fPQ4jCL6EiE
-.youtube.com	TRUE	/	FALSE	0	YSC	DjdQqy9i8_w
-.youtube.com	TRUE	/	FALSE	0	PREF	f4=4000000
+.youtube.com	TRUE	/	FALSE	1756677600	VISITOR_INFO1_LIVE	fPQ4jCL6EiE1234
+.youtube.com	TRUE	/	FALSE	1756677600	YSC	DjdQqy9i8_w5678
+.youtube.com	TRUE	/	FALSE	1756677600	PREF	f4=4000000&tz=UTC&f6=40000000
+.youtube.com	TRUE	/	FALSE	1756677600	CONSENT	PENDING+999
 youtube.com	FALSE	/	FALSE	0	GPS	1
+youtube.com	FALSE	/	FALSE	0	SOCS	CAESEwgDEgk0NzM3NzM5MjQaAmVuIAEaBgiA_LyaBg
+.youtube.com	TRUE	/	FALSE	1756677600	__Secure-3PSID	g.a000lQhK_some_secure_token_here
+.youtube.com	TRUE	/	FALSE	1756677600	LOGIN_INFO	AFmmF2swRQIgE_fake_login_info_here
 """
             f.write(cookie_content)
-            print(f"🍪 쿠키 파일 생성: {f.name}", flush=True)
+            print(f"🍪 강화된 쿠키 파일 생성: {f.name}", flush=True)
             return f.name
     except Exception as e:
         print(f"❌ 쿠키 파일 생성 실패: {str(e)}", flush=True)
@@ -140,11 +145,13 @@ def get_server_optimized_options(platform, outtmpl):
     import time
     import random
     
+    # 최신 실제 브라우저 User-Agent들 (2024년 기준)
     user_agents = [
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 Safari/605.1.15',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
     ]
     
     selected_ua = random.choice(user_agents)
@@ -191,9 +198,9 @@ def get_server_optimized_options(platform, outtmpl):
     if platform == 'YouTube':
         base_opts.update({
             'format': 'best[height<=720]/best[height<=480]/worst',
-            'extractor_retries': 15,
-            'sleep_interval': random.uniform(0.5, 2),
-            'max_sleep_interval': 3,
+            'extractor_retries': 20,
+            'sleep_interval': random.uniform(1, 3),
+            'max_sleep_interval': 5,
             'youtube_include_dash_manifest': False,
             'writesubtitles': False,
             'writeautomaticsub': False,
@@ -201,19 +208,37 @@ def get_server_optimized_options(platform, outtmpl):
             'writethumbnail': False,
             'writeinfojson': False,
             'skip_unavailable_fragments': True,
+            
+            # 봇 차단 우회를 위한 고급 설정
             'extractor_args': {
                 'youtube': {
                     'construct_dash': False,
                     'skip': ['hls', 'dash'],
                     'player_skip': ['configs'],
+                    'player_client': ['android', 'web'],
+                    'innertube_host': 'www.youtube.com',
+                    'innertube_key': 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8'
                 }
             },
+            
+            # 실제 브라우저처럼 보이는 헤더
             'http_headers': {
                 **base_opts['http_headers'],
                 'Referer': 'https://www.youtube.com/',
                 'Origin': 'https://www.youtube.com',
                 'X-YouTube-Client-Name': '1',
-                'X-YouTube-Client-Version': '2.20231214.01.00'
+                'X-YouTube-Client-Version': '2.20241205.01.00',
+                'X-YouTube-Page-CL': '648000000',
+                'X-YouTube-Page-Label': 'youtube.desktop.web_20241205_01_RC01',
+                'X-YouTube-Utc-Offset': '0',
+                'X-Forwarded-For': f'{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}',
+                'Accept-Language': 'en-US,en;q=0.9,ko;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'DNT': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'same-origin',
+                'Sec-Fetch-User': '?1'
             },
             'cookiefile': fake_cookies if fake_cookies else None
         })
