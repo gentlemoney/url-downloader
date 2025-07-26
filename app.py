@@ -123,7 +123,7 @@ def get_platform_specific_options(platform):
         'extractor_retries': 3,
         'format': 'best[ext=mp4]/best',
         'merge_output_format': 'mp4',
-        'cookiesfrombrowser': ('chrome',),
+        # 'cookiesfrombrowser': ('chrome',),  # Render 환경에서 작동하지 않음
         'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'extractaudio': False,
         'audioformat': 'mp3',
@@ -154,7 +154,7 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',),
+            # 'cookiesfrombrowser': ('chrome',),  # Render 환경에서 작동하지 않음
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
@@ -203,7 +203,7 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',),
+            # 'cookiesfrombrowser': ('chrome',),  # Render 환경에서 작동하지 않음
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
@@ -252,7 +252,7 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',),
+            # 'cookiesfrombrowser': ('chrome',),  # Render 환경에서 작동하지 않음
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
@@ -301,7 +301,7 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',),
+            # 'cookiesfrombrowser': ('chrome',),  # Render 환경에서 작동하지 않음
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
