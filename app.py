@@ -4,6 +4,8 @@ import os
 import uuid
 import logging
 import re
+import requests
+import json
 
 app = Flask(__name__)
 
@@ -34,6 +36,72 @@ def convert_threads_to_instagram_url(url):
             return f"https://www.instagram.com/p/{post_id}/"
     
     return url
+
+def download_threads_video(url, outtmpl):
+    """Threads 비디오를 직접 다운로드합니다."""
+    import requests
+    import re
+    import json
+    
+    try:
+        # User-Agent 설정
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        }
+        
+        # Threads 페이지 가져오기
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        
+        # 페이지에서 비디오 URL 찾기
+        page_content = response.text
+        
+        # 다양한 패턴으로 비디오 URL 찾기
+        video_patterns = [
+            r'"video_url":"([^"]+)"',
+            r'"video_url":"([^"]+)"',
+            r'<video[^>]+src="([^"]+)"',
+            r'"media_url":"([^"]+)"',
+            r'"url":"([^"]+\.mp4[^"]*)"',
+        ]
+        
+        video_url = None
+        for pattern in video_patterns:
+            matches = re.findall(pattern, page_content)
+            for match in matches:
+                if '.mp4' in match or 'video' in match.lower():
+                    video_url = match.replace('\\u0026', '&').replace('\\/', '/')
+                    break
+            if video_url:
+                break
+        
+        if not video_url:
+            raise Exception("비디오 URL을 찾을 수 없습니다.")
+        
+        logger.info(f"Threads 비디오 URL 발견: {video_url}")
+        
+        # 비디오 다운로드
+        video_response = requests.get(video_url, headers=headers, stream=True)
+        video_response.raise_for_status()
+        
+        # 파일 저장
+        filename = outtmpl.replace('%(ext)s', 'mp4')
+        with open(filename, 'wb') as f:
+            for chunk in video_response.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        
+        logger.info(f"Threads 비디오 다운로드 완료: {filename}")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"Threads 다운로드 실패: {str(e)}")
+        raise e
 
 def normalize_threads_url(url):
     """Threads URL을 정규화합니다."""
@@ -632,6 +700,7 @@ HTML_FORM = '''
           <strong>Threads 팁:</strong> Threads 비디오와 포스트를 지원합니다. Instagram 기반이므로 로그인이 필요할 수 있습니다.
           <br><small style="color: #343a40;">💡 Threads는 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
           <br><small style="color: #343a40;">📝 예시: https://threads.com/@username/post/1234567890</small>
+          <br><small style="color: #dc3545;">⚠️ 주의: 공개 포스트만 다운로드 가능하며, Instagram 로그인이 필요할 수 있습니다.</small>
         </div>
         <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; font-size: 0.9em; color: #0c5460;">
           <i class="fas fa-info-circle"></i>
@@ -763,17 +832,28 @@ def download():
         url = normalize_facebook_url(url)
         logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
     
-    # Threads URL 정규화 및 Instagram URL로 변환
+    # Threads URL 정규화 및 직접 다운로드
     if platform == 'Threads':
         original_url = url
         url = normalize_threads_url(url)
-        instagram_url = convert_threads_to_instagram_url(url)
-        if instagram_url != url:
-            logger.info(f"Threads URL을 Instagram URL로 변환: {original_url} -> {instagram_url}")
-            url = instagram_url
-            platform = 'Instagram'  # Instagram으로 플랫폼 변경
-        else:
-            logger.info(f"Threads URL 정규화: {original_url} -> {url}")
+        logger.info(f"Threads URL 정규화: {original_url} -> {url}")
+        
+        try:
+            # Threads 직접 다운로드 시도
+            filename = download_threads_video(url, outtmpl)
+            base = os.path.basename(filename)
+            logger.info(f"Threads 직접 다운로드 완료: {base}")
+            return render_template_string(HTML_FORM, filename=base)
+        except Exception as threads_error:
+            logger.warning(f"Threads 직접 다운로드 실패, Instagram 변환 시도: {str(threads_error)}")
+            # 실패하면 Instagram 변환 시도
+            instagram_url = convert_threads_to_instagram_url(url)
+            if instagram_url != url:
+                logger.info(f"Threads URL을 Instagram URL로 변환: {url} -> {instagram_url}")
+                url = instagram_url
+                platform = 'Instagram'  # Instagram으로 플랫폼 변경
+            else:
+                raise threads_error
     
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
