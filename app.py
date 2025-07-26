@@ -923,6 +923,22 @@ HTML_FORM = '''
           <div class="spinner"></div>
           <p>다운로드 중...</p>
         </div>
+        
+        {% if filename %}
+        <div class="result success">
+          <i class="fas fa-check-circle"></i> 다운로드 완료!
+          <br>
+          <a href="/file/{{ filename }}" class="download-link">
+            <i class="fas fa-download"></i> 파일 다운로드
+          </a>
+        </div>
+        {% endif %}
+        
+        {% if error %}
+        <div class="result error">
+          <i class="fas fa-exclamation-triangle"></i> {{ error }}
+        </div>
+        {% endif %}
       </form>
       
       <div class="platforms">
@@ -1125,12 +1141,27 @@ def download():
                 
                 # 다운로드된 파일 찾기
                 filename = ydl.prepare_filename(info)
-                if not filename or not os.path.exists(filename):
-                    # UUID 기반 파일명으로 대체
-                    filename = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.mp4")
+                logger.info(f"예상 파일명: {filename}")
                 
+                # 실제 다운로드된 파일 찾기
+                if not filename or not os.path.exists(filename):
+                    # downloads 폴더에서 가장 최근 파일 찾기
+                    files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
+                    if files:
+                        # 가장 최근 파일 선택
+                        files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
+                        filename = os.path.join(DOWNLOAD_FOLDER, files[0])
+                        logger.info(f"찾은 파일: {filename}")
+                    else:
+                        raise Exception("다운로드된 파일을 찾을 수 없습니다.")
+                
+                # 파일 확장자 확인 및 변환
                 if not filename.endswith('.mp4'):
-                    filename = os.path.splitext(filename)[0] + '.mp4'
+                    base_name = os.path.splitext(filename)[0]
+                    new_filename = base_name + '.mp4'
+                    if os.path.exists(filename):
+                        os.rename(filename, new_filename)
+                        filename = new_filename
                 
                 base = os.path.basename(filename)
                 logger.info(f"다운로드 완료: {base}")
