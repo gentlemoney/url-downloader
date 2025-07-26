@@ -524,19 +524,32 @@ def download():
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
-            info = ydl.extract_info(url, download=False)
-            logger.info(f"영상 제목: {info.get('title', 'Unknown')}")
-            
-            # 실제 다운로드 실행
-            ydl.download([url])
-            
-            # 다운로드된 파일 찾기
-            filename = ydl.prepare_filename(info)
-            if not filename.endswith('.mp4'):
-                filename = os.path.splitext(filename)[0] + '.mp4'
-            
-            base = os.path.basename(filename)
-            logger.info(f"다운로드 완료: {base}")
+            try:
+                info = ydl.extract_info(url, download=False)
+                if not info:
+                    raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
+                
+                title = info.get('title', 'Unknown')
+                logger.info(f"영상 제목: {title}")
+                
+                # 실제 다운로드 실행
+                ydl.download([url])
+                
+                # 다운로드된 파일 찾기
+                filename = ydl.prepare_filename(info)
+                if not filename or not os.path.exists(filename):
+                    # UUID 기반 파일명으로 대체
+                    filename = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.mp4")
+                
+                if not filename.endswith('.mp4'):
+                    filename = os.path.splitext(filename)[0] + '.mp4'
+                
+                base = os.path.basename(filename)
+                logger.info(f"다운로드 완료: {base}")
+                
+            except Exception as extract_error:
+                logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
+                raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
             
         return render_template_string(HTML_FORM, filename=base)
         
