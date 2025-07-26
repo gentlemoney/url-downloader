@@ -40,11 +40,21 @@ logger = logging.getLogger(__name__)
 print("🔍 로깅 시스템 초기화 완료", flush=True)
 logger.info("Flask 앱 시작 중...")
 
-# 다운로드 폴더 설정
-DOWNLOAD_FOLDER = 'downloads'
+# 다운로드 폴더 설정 - Render 환경에 맞게 조정
+if IS_SERVER_ENV:
+    DOWNLOAD_FOLDER = '/tmp/downloads'
+else:
+    DOWNLOAD_FOLDER = os.path.abspath('downloads')
+
 if not os.path.exists(DOWNLOAD_FOLDER):
-    os.makedirs(DOWNLOAD_FOLDER)
+    os.makedirs(DOWNLOAD_FOLDER, mode=0o755)
     print(f"📁 다운로드 폴더 생성: {DOWNLOAD_FOLDER}", flush=True)
+
+# 폴더 권한 확인
+print(f"📋 폴더 권한 확인: {oct(os.stat(DOWNLOAD_FOLDER).st_mode)[-3:]}", flush=True)
+print(f"📍 현재 작업 디렉토리: {os.getcwd()}", flush=True)
+print(f"📁 절대 경로: {DOWNLOAD_FOLDER}", flush=True)
+print(f"🌐 서버 환경: {IS_SERVER_ENV}", flush=True)
 
 def download_youtube_with_pytube(url, outtmpl):
     """pytube를 사용하여 YouTube 비디오를 다운로드합니다."""
@@ -682,10 +692,27 @@ def download():
                 return render_template_string(HTML_FORM, 
                                             error=f"{platform} 다운로드에 실패했습니다. 다시 시도해주세요.")
         
-        # 다운로드된 파일 찾기
+        # 다운로드된 파일 찾기 - 더 자세한 추적
         print("🔍 다운로드된 파일 검색 중...", flush=True)
-        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv', '.m4a', '.mp3'))]
-        print(f"📁 발견된 파일들: {files}", flush=True)
+        print(f"📁 검색 대상 폴더: {DOWNLOAD_FOLDER}", flush=True)
+        
+        # 폴더 내 모든 파일 나열
+        try:
+            all_files = os.listdir(DOWNLOAD_FOLDER)
+            print(f"📂 폴더 내 모든 파일: {all_files}", flush=True)
+        except Exception as e:
+            print(f"❌ 폴더 읽기 실패: {e}", flush=True)
+            return render_template_string(HTML_FORM, 
+                                        error=f"다운로드 폴더 접근 실패: {str(e)}")
+        
+        # 비디오/오디오 파일만 필터링
+        video_extensions = ('.mp4', '.webm', '.mkv', '.m4a', '.mp3', '.wav', '.avi', '.mov')
+        files = [f for f in all_files if f.lower().endswith(video_extensions)]
+        print(f"🎵 비디오/오디오 파일들: {files}", flush=True)
+        
+        # unique_id가 포함된 파일들도 확인
+        unique_files = [f for f in all_files if unique_id in f]
+        print(f"🔑 ID가 포함된 파일들: {unique_files}", flush=True)
         
         if files:
             # 가장 최근 파일 선택
@@ -699,10 +726,17 @@ def download():
             file_size = os.path.getsize(filename)
             print(f"📊 파일 크기: {file_size} bytes", flush=True)
             
-            # 다운로드 성공시 바로 파일 다운로드
-            return send_file(filename, as_attachment=True, download_name=base)
+            # 파일이 유효한지 확인 (크기가 0이 아닌지)
+            if file_size > 0:
+                print("✅ 유효한 파일 확인됨", flush=True)
+                return send_file(filename, as_attachment=True, download_name=base)
+            else:
+                print("❌ 파일 크기가 0 - 다운로드 실패", flush=True)
+                return render_template_string(HTML_FORM, 
+                                            error="다운로드된 파일이 비어있습니다. 다시 시도해주세요.")
         else:
             print("❌ 다운로드된 파일을 찾을 수 없음", flush=True)
+            print(f"🔍 검색한 확장자: {video_extensions}", flush=True)
             return render_template_string(HTML_FORM, 
                                         error="다운로드된 파일을 찾을 수 없습니다. 다시 시도해주세요.")
         
