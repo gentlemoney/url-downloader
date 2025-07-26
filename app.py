@@ -13,10 +13,14 @@ from urllib.parse import urlparse, parse_qs
 
 app = Flask(__name__)
 
-# Render 환경 자동 감지
+# 서버 환경 자동 감지 (Render, Vercel, Railway, Heroku 등)
 IS_SERVER_ENV = (
     os.environ.get('RENDER') or 
+    os.environ.get('VERCEL') or
+    os.environ.get('RAILWAY_ENVIRONMENT') or
+    os.environ.get('HEROKU_APP_NAME') or
     'onrender.com' in os.environ.get('HOSTNAME', '') or
+    'vercel.app' in os.environ.get('VERCEL_URL', '') or
     os.environ.get('PORT') or
     'cursor' in os.environ.get('HOSTNAME', '').lower() or
     os.path.exists('/.dockerenv')
@@ -24,7 +28,23 @@ IS_SERVER_ENV = (
 
 if IS_SERVER_ENV:
     os.environ['SERVER_ENV'] = 'true'
-    print("🚀 서버 환경 감지됨 - 특별 설정 적용", flush=True)
+    # 플랫폼 감지
+    platform = "Unknown"
+    if os.environ.get('RENDER'):
+        platform = "Render"
+    elif os.environ.get('VERCEL'):
+        platform = "Vercel" 
+    elif os.environ.get('RAILWAY_ENVIRONMENT'):
+        platform = "Railway"
+    elif os.environ.get('HEROKU_APP_NAME'):
+        platform = "Heroku"
+    elif 'onrender.com' in os.environ.get('HOSTNAME', ''):
+        platform = "Render (hostname)"
+    elif 'vercel.app' in os.environ.get('VERCEL_URL', ''):
+        platform = "Vercel (URL)"
+    
+    print(f"🚀 서버 환경 감지됨: {platform}", flush=True)
+    print(f"📊 환경변수: PORT={os.environ.get('PORT')}, HOSTNAME={os.environ.get('HOSTNAME')}", flush=True)
 
 # 강화된 로깅 설정 (Render용)
 logging.basicConfig(
@@ -595,6 +615,33 @@ HTML_FORM = """
 def index():
     print("🏠 메인 페이지 접속", flush=True)
     return render_template_string(HTML_FORM)
+
+@app.route('/test')
+def test():
+    """서버 환경 테스트용 엔드포인트"""
+    import datetime
+    
+    test_info = {
+        'timestamp': datetime.datetime.now().isoformat(),
+        'server_env': IS_SERVER_ENV,
+        'download_folder': DOWNLOAD_FOLDER,
+        'python_version': sys.version,
+        'platform': platform if 'platform' in globals() else 'Unknown',
+        'env_vars': {
+            'PORT': os.environ.get('PORT'),
+            'HOSTNAME': os.environ.get('HOSTNAME'),
+            'RENDER': os.environ.get('RENDER'),
+            'VERCEL': os.environ.get('VERCEL'),
+            'RAILWAY_ENVIRONMENT': os.environ.get('RAILWAY_ENVIRONMENT'),
+        }
+    }
+    
+    return f"""
+    <h1>🔍 서버 환경 테스트</h1>
+    <pre>{json.dumps(test_info, indent=2, ensure_ascii=False)}</pre>
+    <br>
+    <a href="/">← 메인으로 돌아가기</a>
+    """
 
 @app.route('/', methods=['POST'])
 def download():
