@@ -7,6 +7,7 @@ import requests
 import json
 import re
 from pytube import YouTube
+import sys
 
 from urllib.parse import urlparse, parse_qs
 
@@ -23,20 +24,32 @@ IS_SERVER_ENV = (
 
 if IS_SERVER_ENV:
     os.environ['SERVER_ENV'] = 'true'
-    print("서버 환경 감지됨 - 특별 설정 적용")
+    print("🚀 서버 환경 감지됨 - 특별 설정 적용", flush=True)
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
+# 강화된 로깅 설정 (Render용)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
 logger = logging.getLogger(__name__)
+
+# Render 로그 출력 확인
+print("🔍 로깅 시스템 초기화 완료", flush=True)
+logger.info("Flask 앱 시작 중...")
 
 # 다운로드 폴더 설정
 DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
+    print(f"📁 다운로드 폴더 생성: {DOWNLOAD_FOLDER}", flush=True)
 
 def download_youtube_with_pytube(url, outtmpl):
     """pytube를 사용하여 YouTube 비디오를 다운로드합니다."""
     try:
+        print(f"📺 pytube로 YouTube 다운로드 시작: {url}", flush=True)
         logger.info(f"pytube로 YouTube 다운로드 시작: {url}")
         
         # YouTube 객체 생성
@@ -53,13 +66,17 @@ def download_youtube_with_pytube(url, outtmpl):
         safe_title = re.sub(r'[-\s]+', '-', safe_title)
         filename = os.path.join(DOWNLOAD_FOLDER, f"{safe_title}.mp4")
         
+        print(f"💾 다운로드할 파일명: {filename}", flush=True)
+        
         # 다운로드
         stream.download(output_path=DOWNLOAD_FOLDER, filename=f"{safe_title}.mp4")
         
+        print(f"✅ pytube 다운로드 완료: {filename}", flush=True)
         logger.info(f"pytube 다운로드 완료: {filename}")
         return filename
         
     except Exception as e:
+        print(f"❌ pytube 오류: {str(e)}", flush=True)
         logger.error(f"pytube 오류: {str(e)}")
         raise e
 
@@ -79,8 +96,10 @@ def create_youtube_cookies():
 youtube.com	FALSE	/	FALSE	0	GPS	1
 """
             f.write(cookie_content)
+            print(f"🍪 쿠키 파일 생성: {f.name}", flush=True)
             return f.name
     except Exception as e:
+        print(f"❌ 쿠키 파일 생성 실패: {str(e)}", flush=True)
         logger.error(f"쿠키 파일 생성 실패: {str(e)}")
         return None
 
@@ -99,6 +118,7 @@ def get_server_optimized_options(platform, outtmpl):
     ]
     
     selected_ua = random.choice(user_agents)
+    print(f"🔧 선택된 User-Agent: {selected_ua[:50]}...", flush=True)
     
     base_opts = {
         'format': 'best[height<=720]/best[height<=480]/worst',
@@ -168,6 +188,7 @@ def get_server_optimized_options(platform, outtmpl):
             'cookiefile': fake_cookies if fake_cookies else None
         })
     
+    print(f"⚙️ yt-dlp 옵션 설정 완료 (플랫폼: {platform})", flush=True)
     return base_opts
 
 def detect_platform(url):
@@ -246,30 +267,41 @@ def download_with_fallback(url, platform, outtmpl):
     import time
     import random
     
+    print(f"🔄 서버 환경에서 {platform} 다운로드 시작: {url}", flush=True)
     logger.info(f"서버 환경에서 {platform} 다운로드 시작: {url}")
     
     # 방법 1: 최적화된 yt-dlp 설정
     try:
+        print("⏳ 방법 1: 최적화된 yt-dlp 시도", flush=True)
         time.sleep(random.uniform(0.5, 1.5))
         opts = get_server_optimized_options(platform, outtmpl)
         logger.info("방법 1: 최적화된 yt-dlp 시도")
         
         with yt_dlp.YoutubeDL(opts) as ydl:
             try:
+                print("📊 비디오 정보 추출 중...", flush=True)
                 info = ydl.extract_info(url, download=False)
                 if info and info.get('title'):
+                    print(f"✅ 비디오 정보 확인됨: {info.get('title')}", flush=True)
                     logger.info(f"비디오 정보 확인됨: {info.get('title')}")
+                    print("💾 다운로드 실행 중...", flush=True)
                     ydl.download([url])
+                    print("✅ 방법 1 다운로드 완료!", flush=True)
                     return True
             except Exception as extract_error:
+                print(f"⚠️ 정보 추출 실패, 직접 다운로드 시도: {str(extract_error)}", flush=True)
                 logger.warning(f"정보 추출 실패, 직접 다운로드 시도: {str(extract_error)}")
+                print("💾 직접 다운로드 시도 중...", flush=True)
                 ydl.download([url])
+                print("✅ 방법 1 직접 다운로드 완료!", flush=True)
                 return True
     except Exception as e:
+        print(f"❌ 방법 1 실패: {str(e)}", flush=True)
         logger.error(f"방법 1 실패: {str(e)}")
     
     # 방법 2: 간단한 설정으로 재시도
     try:
+        print("⏳ 방법 2: 간단한 설정으로 시도", flush=True)
         time.sleep(random.uniform(1, 2))
         simple_opts = {
             'format': 'worst/best',
@@ -284,22 +316,29 @@ def download_with_fallback(url, platform, outtmpl):
         logger.info("방법 2: 간단한 설정으로 시도")
         
         with yt_dlp.YoutubeDL(simple_opts) as ydl:
+            print("💾 방법 2 다운로드 실행 중...", flush=True)
             ydl.download([url])
+        print("✅ 방법 2 다운로드 완료!", flush=True)
         return True
     except Exception as e:
+        print(f"❌ 방법 2 실패: {str(e)}", flush=True)
         logger.error(f"방법 2 실패: {str(e)}")
     
     # 방법 3: YouTube의 경우 pytube 재시도
     if platform == 'YouTube':
         try:
+            print("⏳ 방법 3: pytube로 YouTube 시도", flush=True)
             logger.info("방법 3: pytube로 YouTube 시도")
             time.sleep(random.uniform(1, 2))
             filename = download_youtube_with_pytube(url, outtmpl)
             if filename and os.path.exists(filename):
+                print("✅ 방법 3 pytube 다운로드 완료!", flush=True)
                 return True
         except Exception as e:
+            print(f"❌ 방법 3 실패: {str(e)}", flush=True)
             logger.error(f"방법 3 실패: {str(e)}")
     
+    print("❌ 모든 다운로드 방법 실패", flush=True)
     return False
 
 # HTML 템플릿
@@ -544,70 +583,89 @@ HTML_FORM = """
 
 @app.route('/')
 def index():
+    print("🏠 메인 페이지 접속", flush=True)
     return render_template_string(HTML_FORM)
 
 @app.route('/', methods=['POST'])
 def download():
     url = request.form.get('url', '').strip()
     
+    print(f"📥 다운로드 요청 받음: {url}", flush=True)
+    logger.info(f"다운로드 요청: {url}")
+    
     if not url:
+        print("❌ URL이 비어있음", flush=True)
         return render_template_string(HTML_FORM, error="URL을 입력하세요.")
     
     # 플랫폼 감지
     platform, icon, color = detect_platform(url)
+    print(f"🎯 감지된 플랫폼: {platform}", flush=True)
     logger.info(f"감지된 플랫폼: {platform}")
     
     # Reddit URL 정규화
     if platform == 'Reddit':
         original_url = url
         url = normalize_reddit_url(url)
+        print(f"🔗 Reddit URL 정규화: {original_url} -> {url}", flush=True)
         logger.info(f"Reddit URL 정규화: {original_url} -> {url}")
     
     # Twitter/X URL 정규화
     if platform == 'Twitter/X':
         original_url = url
         url = normalize_twitter_url(url)
+        print(f"🔗 Twitter/X URL 정규화: {original_url} -> {url}", flush=True)
         logger.info(f"Twitter/X URL 정규화: {original_url} -> {url}")
     
     # Facebook URL 정규화
     if platform == 'Facebook':
         original_url = url
         url = normalize_facebook_url(url)
+        print(f"🔗 Facebook URL 정규화: {original_url} -> {url}", flush=True)
         logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
     
     # Threads URL 정규화
     if platform == 'Threads':
         original_url = url
         url = normalize_threads_url(url)
+        print(f"🔗 Threads URL 정규화: {original_url} -> {url}", flush=True)
         logger.info(f"Threads URL 정규화: {original_url} -> {url}")
     
     # 고유 파일명 생성
-    outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
+    unique_id = str(uuid.uuid4())
+    outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{unique_id}.%(ext)s")
+    print(f"📁 생성된 파일 템플릿: {outtmpl}", flush=True)
     
     try:
+        print(f"🚀 다운로드 프로세스 시작: {url} (플랫폼: {platform})", flush=True)
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         
         # YouTube 특별 처리
         if platform == 'YouTube':
             try:
+                print("📺 YouTube 감지 - pytube 먼저 시도", flush=True)
                 # 먼저 pytube로 시도
                 filename = download_youtube_with_pytube(url, outtmpl)
                 if filename and os.path.exists(filename):
                     base = os.path.basename(filename)
+                    print(f"✅ pytube로 다운로드 완료: {base}", flush=True)
                     logger.info(f"pytube로 다운로드 완료: {base}")
                     return send_file(filename, as_attachment=True, download_name=base)
             except Exception as pytube_error:
+                print(f"❌ pytube 실패: {str(pytube_error)}", flush=True)
                 logger.error(f"pytube 실패: {str(pytube_error)}")
                 
                 # yt-dlp로 재시도
                 try:
+                    print("🔄 yt-dlp로 재시도", flush=True)
                     ydl_opts = get_server_optimized_options(platform, outtmpl)
                     logger.info("yt-dlp로 YouTube 다운로드 시도...")
                     
                     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                        print("💾 yt-dlp 다운로드 실행...", flush=True)
                         ydl.download([url])
                         
                 except Exception as ydl_error:
+                    print(f"❌ yt-dlp도 실패: {str(ydl_error)}", flush=True)
                     error_str = str(ydl_error).lower()
                     if 'sign in' in error_str or 'bot' in error_str:
                         return render_template_string(HTML_FORM, 
@@ -617,45 +675,62 @@ def download():
         
         # 기타 플랫폼 처리
         else:
+            print(f"🔧 기타 플랫폼 처리: {platform}", flush=True)
             success = download_with_fallback(url, platform, outtmpl)
             if not success:
+                print(f"❌ {platform} 다운로드 실패", flush=True)
                 return render_template_string(HTML_FORM, 
                                             error=f"{platform} 다운로드에 실패했습니다. 다시 시도해주세요.")
         
         # 다운로드된 파일 찾기
+        print("🔍 다운로드된 파일 검색 중...", flush=True)
         files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv', '.m4a', '.mp3'))]
+        print(f"📁 발견된 파일들: {files}", flush=True)
+        
         if files:
             # 가장 최근 파일 선택
             files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
             filename = os.path.join(DOWNLOAD_FOLDER, files[0])
             base = os.path.basename(filename)
+            print(f"🎉 다운로드 완료: {base}", flush=True)
             logger.info(f"다운로드 완료: {base}")
+            
+            # 파일 크기 확인
+            file_size = os.path.getsize(filename)
+            print(f"📊 파일 크기: {file_size} bytes", flush=True)
             
             # 다운로드 성공시 바로 파일 다운로드
             return send_file(filename, as_attachment=True, download_name=base)
         else:
+            print("❌ 다운로드된 파일을 찾을 수 없음", flush=True)
             return render_template_string(HTML_FORM, 
                                         error="다운로드된 파일을 찾을 수 없습니다. 다시 시도해주세요.")
         
     except Exception as e:
         error_msg = f"다운로드 실패: {str(e)}"
+        print(f"💥 예외 발생: {error_msg}", flush=True)
         logger.error(error_msg)
         return render_template_string(HTML_FORM, error=error_msg)
 
 @app.route('/file/<filename>')
 def file(filename):
     path = os.path.join(DOWNLOAD_FOLDER, filename)
+    print(f"📁 파일 요청: {filename}, 경로: {path}", flush=True)
     if os.path.exists(path):
+        print(f"✅ 파일 존재 확인, 전송 시작", flush=True)
         return send_file(path, as_attachment=True)
     else:
+        print(f"❌ 파일이 존재하지 않음: {path}", flush=True)
         return "파일을 찾을 수 없습니다.", 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     host = '0.0.0.0' if IS_SERVER_ENV else 'localhost'
     
-    print(f"🚀 Flask 앱 시작!")
-    print(f"📍 주소: http://{host}:{port}")
-    print(f"🌐 서버 환경: {'예' if IS_SERVER_ENV else '아니오'}")
+    print(f"🚀 Flask 앱 시작!", flush=True)
+    print(f"📍 주소: http://{host}:{port}", flush=True)
+    print(f"🌐 서버 환경: {'예' if IS_SERVER_ENV else '아니오'}", flush=True)
+    print(f"📁 다운로드 폴더: {DOWNLOAD_FOLDER}", flush=True)
+    print(f"🍪 쿠키 파일: {fake_cookies}", flush=True)
     
     app.run(host=host, port=port, debug=not IS_SERVER_ENV) 
