@@ -15,6 +15,25 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def normalize_threads_url(url):
+    """Threads URL을 정규화합니다."""
+    import re
+    
+    # Threads URL 패턴들
+    patterns = [
+        r'https?://(?:www\.)?threads\.net/@[^/]+/post/[^/]+',
+        r'https?://(?:www\.)?threads\.net/t/[^/]+',
+        r'https?://(?:www\.)?threads\.net/post/[^/]+',
+    ]
+    
+    for pattern in patterns:
+        if re.match(pattern, url):
+            # URL 끝의 슬래시 제거
+            url = url.rstrip('/')
+            return url
+    
+    return url
+
 def normalize_facebook_url(url):
     """Facebook URL을 정규화합니다."""
     import re
@@ -89,6 +108,8 @@ def detect_platform(url):
         return 'TikTok', 'fab fa-tiktok', '#000000'
     elif 'instagram.com' in url_lower or 'instagr.am' in url_lower:
         return 'Instagram', 'fab fa-instagram', '#E4405F'
+    elif 'threads.net' in url_lower:
+        return 'Threads', 'fas fa-thread', '#000000'
     elif 'reddit.com' in url_lower or 'redd.it' in url_lower:
         # Reddit URL 정규화
         if '/comments/' in url_lower:
@@ -127,6 +148,34 @@ def get_platform_specific_options(platform):
             'extract_flat': False,
             'ignoreerrors': True,  # Instagram은 일부 콘텐츠에 접근 제한이 있을 수 있음
             'extractor_retries': 5,  # Instagram은 재시도가 필요할 수 있음
+        })
+    elif platform == 'Threads':
+        base_options.update({
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),
+            'extract_flat': False,
+            'ignoreerrors': True,
+            'extractor_retries': 5,
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'nocheckcertificate': True,
+            'no_warnings': False,
+            'quiet': False,
+            'extractaudio': False,
+            'audioformat': 'mp3',
+            'audioquality': '0',
+            'recodevideo': 'mp4',
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'prefer_ffmpeg': True,
+            'keepvideo': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'subtitleslangs': ['en'],
+            'skip_download': False,
+            'outtmpl': '%(title)s.%(ext)s',
         })
     elif platform == 'Reddit':
         base_options.update({
@@ -533,6 +582,11 @@ HTML_FORM = '''
             <small style="color: #666; font-size: 0.8em;">(Reels, Stories, Posts)</small>
           </div>
           <div class="platform-item">
+            <i class="fas fa-thread" style="color: #000000;"></i>
+            <span>Threads</span>
+            <small style="color: #666; font-size: 0.8em;">(Posts, Videos)</small>
+          </div>
+          <div class="platform-item">
             <i class="fab fa-reddit" style="color: #FF4500;"></i>
             <span>Reddit</span>
             <small style="color: #666; font-size: 0.8em;">(Videos, GIFs)</small>
@@ -549,6 +603,12 @@ HTML_FORM = '''
         <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9em; color: #856404;">
           <i class="fas fa-info-circle"></i>
           <strong>Instagram 팁:</strong> Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.
+        </div>
+        <div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px; font-size: 0.9em; color: #495057;">
+          <i class="fas fa-info-circle"></i>
+          <strong>Threads 팁:</strong> Threads 비디오와 포스트를 지원합니다. Instagram 기반이므로 로그인이 필요할 수 있습니다.
+          <br><small style="color: #343a40;">💡 Threads는 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
+          <br><small style="color: #343a40;">📝 예시: https://threads.net/@username/post/1234567890</small>
         </div>
         <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; font-size: 0.9em; color: #0c5460;">
           <i class="fas fa-info-circle"></i>
@@ -611,6 +671,10 @@ HTML_FORM = '''
             platform = 'Instagram';
             icon = 'fab fa-instagram';
             color = '#E4405F';
+          } else if (urlLower.includes('threads.net')) {
+            platform = 'Threads';
+            icon = 'fas fa-thread';
+            color = '#000000';
           } else if (urlLower.includes('reddit.com') || urlLower.includes('redd.it')) {
             platform = 'Reddit';
             icon = 'fab fa-reddit';
@@ -675,6 +739,12 @@ def download():
         original_url = url
         url = normalize_facebook_url(url)
         logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
+    
+    # Threads URL 정규화
+    if platform == 'Threads':
+        original_url = url
+        url = normalize_threads_url(url)
+        logger.info(f"Threads URL 정규화: {original_url} -> {url}")
     
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
