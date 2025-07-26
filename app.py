@@ -69,6 +69,57 @@ def download_threads_video(url, outtmpl):
         page_content = response.text
         logger.info(f"Threads 페이지 내용 길이: {len(page_content)}")
         
+        # 페이지 내용 일부를 로그에 저장 (디버깅용)
+        logger.info(f"페이지 내용 일부: {page_content[:1000]}...")
+        
+        # Instagram API를 직접 사용하는 방법 시도
+        try:
+            # Threads URL에서 포스트 ID 추출
+            post_id_match = re.search(r'/post/([^/?]+)', url)
+            if post_id_match:
+                post_id = post_id_match.group(1)
+                logger.info(f"추출된 포스트 ID: {post_id}")
+                
+                # Instagram API URL 시도
+                instagram_api_url = f"https://www.instagram.com/api/v1/media/{post_id}/info/"
+                api_headers = headers.copy()
+                api_headers.update({
+                    'X-IG-App-ID': '936619743392459',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': 'https://www.instagram.com/',
+                })
+                
+                logger.info(f"Instagram API 시도: {instagram_api_url}")
+                api_response = requests.get(instagram_api_url, headers=api_headers, timeout=10)
+                
+                if api_response.status_code == 200:
+                    api_data = api_response.json()
+                    logger.info(f"Instagram API 응답: {api_data}")
+                    
+                    # API 응답에서 비디오 URL 찾기
+                    if 'items' in api_data and len(api_data['items']) > 0:
+                        item = api_data['items'][0]
+                        if 'video_versions' in item and len(item['video_versions']) > 0:
+                            video_url = item['video_versions'][0]['url']
+                            logger.info(f"Instagram API에서 비디오 URL 발견: {video_url}")
+                            
+                            # 비디오 다운로드
+                            video_response = requests.get(video_url, headers=headers, stream=True, timeout=30)
+                            video_response.raise_for_status()
+                            
+                            # 파일 저장
+                            filename = outtmpl.replace('%(ext)s', 'mp4')
+                            with open(filename, 'wb') as f:
+                                for chunk in video_response.iter_content(chunk_size=8192):
+                                    if chunk:
+                                        f.write(chunk)
+                            
+                            logger.info(f"Threads 비디오 다운로드 완료: {filename}")
+                            return filename
+        except Exception as api_error:
+            logger.warning(f"Instagram API 시도 실패: {str(api_error)}")
+        
+        # 기존 방법들 시도
         # JSON 데이터 찾기 (Threads는 JSON 형태로 데이터를 저장)
         json_patterns = [
             r'<script[^>]*>window\.__INITIAL_STATE__\s*=\s*({[^<]+})</script>',
@@ -993,4 +1044,4 @@ def file(filename):
     return "파일이 존재하지 않습니다.", 404
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8080) 
+    app.run(debug=True, host='0.0.0.0', port=3000) 
