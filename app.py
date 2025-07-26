@@ -114,6 +114,7 @@ def detect_platform(url):
 
 def get_platform_specific_options(platform):
     """플랫폼별 최적화된 yt-dlp 옵션을 반환합니다."""
+    # Render 환경에서는 Chrome 쿠키를 사용할 수 없으므로 완전히 제거
     base_options = {
         'quiet': False,
         'no_warnings': False,
@@ -123,7 +124,7 @@ def get_platform_specific_options(platform):
         'extractor_retries': 3,
         'format': 'best[ext=mp4]/best',
         'merge_output_format': 'mp4',
-        'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,
+        # 'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,  # Render 환경에서는 제거
         'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'extractaudio': False,
         'audioformat': 'mp3',
@@ -154,7 +155,7 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,
+            # 'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,  # Render 환경에서는 제거
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
@@ -203,7 +204,7 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,
+            # 'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,  # Render 환경에서는 제거
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
@@ -252,11 +253,11 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'bestvideo+bestaudio/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,
+            # 'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,  # Render 환경에서는 제거
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
-            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'nocheckcertificate': True,
             'no_warnings': False,
             'quiet': False,
@@ -301,11 +302,11 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,
+            # 'cookiesfrombrowser': ('chrome',) if not os.environ.get('RENDER') else None,  # Render 환경에서는 제거
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
-            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'nocheckcertificate': True,
             'no_warnings': False,
             'quiet': False,
