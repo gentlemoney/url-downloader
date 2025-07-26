@@ -44,11 +44,11 @@ def download_threads_video(url, outtmpl):
     import json
     
     try:
-        # 더 강력한 헤더 설정
+        # 더 강력한 헤더 설정 (Threads 전용)
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
             'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
@@ -56,7 +56,9 @@ def download_threads_video(url, outtmpl):
             'Sec-Fetch-Mode': 'navigate',
             'Sec-Fetch-Site': 'none',
             'Sec-Fetch-User': '?1',
-            'Cache-Control': 'max-age=0',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'DNT': '1',
         }
         
         # Threads 페이지 가져오기
@@ -128,6 +130,22 @@ def download_threads_video(url, outtmpl):
                 r'"video_url":"([^"]+)"',
                 r'"media_url":"([^"]+)"',
                 r'"url":"([^"]+)"',
+                # 추가 패턴들
+                r'"video_url":"([^"]+cdninstagram[^"]*)"',
+                r'"media_url":"([^"]+cdninstagram[^"]*)"',
+                r'"url":"([^"]+cdninstagram[^"]*)"',
+                r'"src":"([^"]+cdninstagram[^"]*)"',
+                r'"contentUrl":"([^"]+cdninstagram[^"]*)"',
+                r'"content_url":"([^"]+cdninstagram[^"]*)"',
+                r'"playbackUrl":"([^"]+cdninstagram[^"]*)"',
+                r'"playback_url":"([^"]+cdninstagram[^"]*)"',
+                r'"streamUrl":"([^"]+cdninstagram[^"]*)"',
+                r'"stream_url":"([^"]+cdninstagram[^"]*)"',
+                # HTML 태그 패턴
+                r'<video[^>]+src="([^"]+\.mp4[^"]*)"',
+                r'<video[^>]+src="([^"]+cdninstagram[^"]*)"',
+                r'<source[^>]+src="([^"]+\.mp4[^"]*)"',
+                r'<source[^>]+src="([^"]+cdninstagram[^"]*)"',
             ]
             
             for pattern in video_patterns:
@@ -891,29 +909,30 @@ def download():
         url = normalize_facebook_url(url)
         logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
     
-    # Threads URL 정규화 및 Instagram 변환 우선 시도
+    # Threads URL 정규화 및 직접 다운로드 우선 시도
     if platform == 'Threads':
         original_url = url
         url = normalize_threads_url(url)
         logger.info(f"Threads URL 정규화: {original_url} -> {url}")
         
-        # Instagram 변환을 먼저 시도
-        instagram_url = convert_threads_to_instagram_url(url)
-        if instagram_url != url:
-            logger.info(f"Threads URL을 Instagram URL로 변환: {url} -> {instagram_url}")
-            url = instagram_url
-            platform = 'Instagram'  # Instagram으로 플랫폼 변경
-        else:
-            # Instagram 변환이 안되면 직접 다운로드 시도
-            try:
-                logger.info("Instagram 변환 실패, Threads 직접 다운로드 시도")
-                threads_outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
-                filename = download_threads_video(url, threads_outtmpl)
-                base = os.path.basename(filename)
-                logger.info(f"Threads 직접 다운로드 완료: {base}")
-                return render_template_string(HTML_FORM, filename=base)
-            except Exception as threads_error:
-                logger.error(f"Threads 직접 다운로드도 실패: {str(threads_error)}")
+        # 먼저 Threads 직접 다운로드 시도
+        try:
+            logger.info("Threads 직접 다운로드 시도")
+            threads_outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
+            filename = download_threads_video(url, threads_outtmpl)
+            base = os.path.basename(filename)
+            logger.info(f"Threads 직접 다운로드 완료: {base}")
+            return render_template_string(HTML_FORM, filename=base)
+        except Exception as threads_error:
+            logger.warning(f"Threads 직접 다운로드 실패, Instagram 변환 시도: {str(threads_error)}")
+            # Instagram 변환 시도
+            instagram_url = convert_threads_to_instagram_url(url)
+            if instagram_url != url:
+                logger.info(f"Threads URL을 Instagram URL로 변환: {url} -> {instagram_url}")
+                url = instagram_url
+                platform = 'Instagram'  # Instagram으로 플랫폼 변경
+            else:
+                logger.error(f"Instagram 변환도 실패: {str(threads_error)}")
                 raise threads_error
     
     # 고유 파일명 생성
