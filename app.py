@@ -1246,8 +1246,10 @@ def download():
                     logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
                     raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
         
-        # 다운로드 성공시 바로 파일 다운로드 시작
-        return send_file(filename, as_attachment=True)
+        # 다운로드 성공시 다운로드 링크 제공
+        download_url = f"/file/{base}"
+        success_msg = f"다운로드 완료! 파일명: {base}"
+        return render_template_string(HTML_FORM, success=success_msg, download_url=download_url, filename=base)
         
     except Exception as e:
         error_msg = f"다운로드 실패: {str(e)}"
