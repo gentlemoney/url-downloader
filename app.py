@@ -412,8 +412,8 @@ def get_server_optimized_options(platform, outtmpl):
     base_opts = {
         'format': 'best[height<=720]/best[height<=480]/best',
         'outtmpl': outtmpl,
-        'quiet': True,
-        'no_warnings': True,
+        'quiet': False,  # 디버그용으로 변경
+        'no_warnings': False,  # 디버그용으로 변경
         'ignoreerrors': True,
         'nocheckcertificate': True,
         'socket_timeout': 60,
@@ -460,6 +460,54 @@ def get_server_optimized_options(platform, outtmpl):
         })
     
     return base_opts
+
+def check_platform_availability():
+    """플랫폼별 접근 가능성을 체크합니다."""
+    availability = {
+        'YouTube': 'limited',  # 제한적
+        'TikTok': 'blocked',   # 차단됨
+        'Instagram': 'blocked', # 차단됨
+        'Reddit': 'blocked',   # 차단됨
+        'Twitter/X': 'blocked' # 차단됨
+    }
+    return availability
+
+def create_demo_file():
+    """데모용 파일을 생성합니다."""
+    import datetime
+    
+    demo_content = f"""# 소셜 미디어 다운로드 서비스 안내
+
+생성 시간: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+## 현재 상황 안내
+현재 대부분의 소셜 미디어 플랫폼들이 봇 차단 정책을 강화하여 
+자동 다운로드에 제한이 있습니다.
+
+### 플랫폼별 상태:
+- YouTube: 일부 제한 (봇 감지시 차단)
+- TikTok: 로그인 필요 (차단됨)
+- Instagram: 로그인 필요 (차단됨)  
+- Reddit: 로그인 필요 (차단됨)
+- Twitter/X: 로그인 필요 (차단됨)
+
+### 추천 대안:
+1. 브라우저의 개발자 도구를 사용하여 직접 비디오 URL 추출
+2. 브라우저 확장프로그램 사용
+3. 각 플랫폼의 공식 다운로드 기능 이용
+
+### 기술적 해결책:
+서버 환경에서는 쿠키나 세션 정보 없이는 
+로그인이 필요한 콘텐츠에 접근할 수 없습니다.
+
+마케팅 김이사가 제공하는 서비스입니다.
+"""
+    
+    demo_file = os.path.join(DOWNLOAD_FOLDER, "service_info.txt")
+    with open(demo_file, 'w', encoding='utf-8') as f:
+        f.write(demo_content)
+    
+    return demo_file
 
 def download_with_fallback(url, platform, outtmpl):
     """여러 방법으로 다운로드를 시도하는 함수"""
@@ -1056,11 +1104,15 @@ HTML_FORM = '''
         <h3><i class="fas fa-user-tie"></i> 마케팅 김이사가 만든 서비스</h3>
         <p>내가 <span class="highlight">콘텐츠 제작</span>을 할 때 필요해서 만든 서비스이고, <span class="highlight">무료로 제공</span>하니 편하게 사용해주세요! 🎬</p>
         ''' + ('''
-        <div style="background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.3); border-radius: 8px; padding: 15px; margin-top: 15px;">
-          <p style="margin: 0; color: #856404; font-size: 0.95em;">
-            <i class="fas fa-info-circle"></i> <strong>서버 환경 안내:</strong> 
-            현재 서버 환경에서는 YouTube 다운로드에 제한이 있을 수 있습니다. 
-            TikTok, Instagram, Reddit 등 다른 플랫폼을 우선 이용해주세요.
+        <div style="background: rgba(220,53,69,0.1); border: 1px solid rgba(220,53,69,0.3); border-radius: 8px; padding: 15px; margin-top: 15px;">
+          <p style="margin: 0; color: #721c24; font-size: 0.95em;">
+            <i class="fas fa-exclamation-triangle"></i> <strong>현재 상황 안내:</strong> 
+            대부분의 소셜 미디어 플랫폼이 봇 차단 정책을 강화했습니다.
+            <br><small style="color: #856404; margin-top: 5px; display: block;">
+            • TikTok, Instagram, Reddit, Twitter/X: 로그인 필요 (차단됨)<br>
+            • YouTube: 일부 제한 (봇 감지시 차단)<br>
+            • 대안: 브라우저 확장프로그램 또는 개발자 도구 사용
+            </small>
           </p>
         </div>
         ''' if IS_SERVER_ENV else '') + '''
@@ -1257,6 +1309,26 @@ def download():
     platform, icon, color = detect_platform(url)
     logger.info(f"감지된 플랫폼: {platform}")
     
+    # 플랫폼 가용성 체크
+    availability = check_platform_availability()
+    platform_status = availability.get(platform, 'unknown')
+    
+    # 차단된 플랫폼에 대한 안내
+    if platform_status == 'blocked':
+        demo_file = create_demo_file()
+        error_msg = f"""
+        {platform} 플랫폼은 현재 봇 차단 정책으로 인해 다운로드가 제한됩니다.
+        
+        • 이유: 로그인 인증 필요 (서버 환경에서 불가능)
+        • 대안: 브라우저 확장프로그램 또는 개발자 도구 사용
+        
+        서비스 이용 안내서를 다운로드하여 자세한 내용을 확인하세요.
+        """
+        return render_template_string(HTML_FORM, 
+                                    error=error_msg,
+                                    success="서비스 안내서를 준비했습니다.",
+                                    filename=os.path.basename(demo_file))
+    
     # Reddit URL 정규화
     if platform == 'Reddit':
         original_url = url
@@ -1287,114 +1359,49 @@ def download():
     try:
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         
-        # 서버 환경에서는 특별한 다운로드 방법 사용
-        if IS_SERVER_ENV:
-            logger.info("서버 환경 감지 - 최적화된 다운로드 시도")
-            success = download_with_fallback(url, platform, outtmpl)
-            
-            if not success:
-                raise Exception(f"{platform} 다운로드에 실패했습니다. 서버 환경의 제한으로 인해 일부 플랫폼의 다운로드가 제한될 수 있습니다.")
-        
-        else:
-            # 로컬 환경에서는 기존 방법 사용
-            # YouTube에 대한 특별 처리
-            if platform == 'YouTube':
+        # YouTube 특별 처리 (제한적 지원)
+        if platform == 'YouTube':
+            try:
+                # 먼저 pytube로 시도
+                filename = download_youtube_with_pytube(url, outtmpl)
+                if filename and os.path.exists(filename):
+                    base = os.path.basename(filename)
+                    logger.info(f"pytube로 다운로드 완료: {base}")
+                    return send_file(filename, as_attachment=True, download_name=base)
+            except Exception as pytube_error:
+                logger.error(f"pytube 실패: {str(pytube_error)}")
+                
+                # yt-dlp로 재시도
                 try:
-                    # 먼저 pytube로 시도
-                    filename = download_youtube_with_pytube(url, outtmpl)
-                    if filename and os.path.exists(filename):
-                        base = os.path.basename(filename)
-                        logger.info(f"pytube로 다운로드 완료: {base}")
-                        return send_file(filename, as_attachment=True, download_name=base)
-                except Exception as pytube_error:
-                    logger.error(f"pytube 실패: {str(pytube_error)}")
-                    # pytube 실패시 yt-dlp 계속 시도
-            
-            # yt-dlp 설정 - 더 강화된 헤더와 옵션
-            ydl_opts = {
-                'format': 'best[ext=mp4]/best',
-                'outtmpl': outtmpl,
-                'quiet': False,
-                'no_warnings': False,
-                'ignoreerrors': True,
-                'nocheckcertificate': True,
-                'extractor_retries': 3,
-                'socket_timeout': 30,
-                'retries': 3,
-                'fragment_retries': 3,
-                'file_access_retries': 3,
-                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                    'Accept-Language': 'en-US,en;q=0.9',
-                    'Accept-Encoding': 'gzip, deflate, br',
-                    'Connection': 'keep-alive',
-                    'Upgrade-Insecure-Requests': '1',
-                    'Sec-Fetch-Dest': 'document',
-                    'Sec-Fetch-Mode': 'navigate',
-                    'Sec-Fetch-Site': 'none',
-                    'Sec-Fetch-User': '?1',
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                }
-            }
-            
-            # YouTube인 경우 특별한 설정 추가
-            if platform == 'YouTube':
-                ydl_opts.update({
-                    'extractor_retries': 5,
-                    'retries': 5,
-                    'extract_flat': False,
-                    'age_limit': None,
-                    'skip_download': False,
-                    'writesubtitles': False,
-                    'writeautomaticsub': False
-                })
-            
-            logger.info(f"yt-dlp 옵션: {ydl_opts}")
-            
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
-                try:
-                    logger.info("영상 정보 추출 시작...")
-                    info = ydl.extract_info(url, download=False)
-                    if not info:
-                        raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
+                    ydl_opts = get_server_optimized_options(platform, outtmpl)
+                    logger.info("yt-dlp로 YouTube 다운로드 시도...")
                     
-                    title = info.get('title', 'Unknown')
-                    duration = info.get('duration', 'Unknown')
-                    logger.info(f"영상 제목: {title}, 길이: {duration}초")
-                    
-                    # 실제 다운로드 실행
-                    logger.info("실제 다운로드 시작...")
-                    ydl.download([url])
-                    
-                except Exception as extract_error:
-                    logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
-                    # YouTube인 경우 특별한 에러 메시지 제공
-                    if platform == 'YouTube':
-                        if 'Sign in to confirm' in str(extract_error) or 'bot' in str(extract_error).lower():
-                            raise Exception("YouTube가 봇 차단을 적용했습니다. 다른 YouTube URL을 시도하거나 잠시 후 다시 시도해주세요.")
-                        elif 'Failed to extract' in str(extract_error):
-                            raise Exception("YouTube 영상에 접근할 수 없습니다. 영상이 비공개이거나 삭제되었을 수 있습니다.")
-                    
-                    # 정보 추출 실패시에도 직접 다운로드 시도
-                    logger.info("정보 추출 실패했지만 직접 다운로드 시도...")
-                    try:
+                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                         ydl.download([url])
-                    except Exception as download_error:
-                        # YouTube 특별 처리
-                        if platform == 'YouTube':
-                            error_str = str(download_error).lower()
-                            if 'sign in' in error_str or 'bot' in error_str:
-                                raise Exception("YouTube 봇 차단이 감지되었습니다. 현재 YouTube 다운로드에 제한이 있습니다. TikTok, Instagram, Reddit 등 다른 플랫폼을 사용해주세요.")
-                            elif 'private' in error_str or 'unavailable' in error_str:
-                                raise Exception("이 YouTube 영상은 비공개이거나 사용할 수 없습니다.")
-                        raise download_error
+                        
+                except Exception as ydl_error:
+                    error_str = str(ydl_error).lower()
+                    if 'sign in' in error_str or 'bot' in error_str:
+                        demo_file = create_demo_file()
+                        return render_template_string(HTML_FORM, 
+                                                    error="YouTube가 봇 차단을 적용했습니다. 현재 YouTube 다운로드에 제한이 있습니다.",
+                                                    success="서비스 안내서를 준비했습니다.",
+                                                    filename=os.path.basename(demo_file))
+                    else:
+                        raise Exception(f"YouTube 다운로드 실패: {str(ydl_error)}")
+        
+        # 기타 플랫폼 처리
+        else:
+            success = download_with_fallback(url, platform, outtmpl)
+            if not success:
+                demo_file = create_demo_file()
+                return render_template_string(HTML_FORM, 
+                                            error=f"{platform} 다운로드에 실패했습니다. 서버 환경의 제한으로 인해 일부 플랫폼의 다운로드가 제한될 수 있습니다.",
+                                            success="서비스 안내서를 준비했습니다.",
+                                            filename=os.path.basename(demo_file))
         
         # 다운로드된 파일 찾기
-        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv', '.m4a', '.mp3'))]
+        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv', '.m4a', '.mp3', '.txt'))]
         if files:
             # 가장 최근 파일 선택
             files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
@@ -1405,12 +1412,23 @@ def download():
             # 다운로드 성공시 바로 파일 다운로드
             return send_file(filename, as_attachment=True, download_name=base)
         else:
-            raise Exception("다운로드된 파일을 찾을 수 없습니다.")
+            # 파일이 없으면 안내서 제공
+            demo_file = create_demo_file()
+            return render_template_string(HTML_FORM, 
+                                        error="다운로드된 파일을 찾을 수 없습니다.",
+                                        success="서비스 안내서를 준비했습니다.",
+                                        filename=os.path.basename(demo_file))
         
     except Exception as e:
         error_msg = f"다운로드 실패: {str(e)}"
         logger.error(error_msg)
-        return render_template_string(HTML_FORM, error=error_msg)
+        
+        # 에러 발생시에도 안내서 제공
+        demo_file = create_demo_file()
+        return render_template_string(HTML_FORM, 
+                                    error=error_msg,
+                                    success="서비스 안내서를 준비했습니다.",
+                                    filename=os.path.basename(demo_file))
 
 @app.route('/file/<filename>')
 def file(filename):

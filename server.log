@@ -1,14 +1,38 @@
+서버 환경 감지됨 - 특별 설정 적용
  * Serving Flask app 'app'
- * Debug mode: on
+ * Debug mode: off
 INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
  * Running on all addresses (0.0.0.0)
  * Running on http://127.0.0.1:3000
- * Running on http://172.30.114.4:3000
+ * Running on http://172.30.0.2:3000
 INFO:werkzeug:[33mPress CTRL+C to quit[0m
-INFO:werkzeug: * Restarting with stat
-WARNING:werkzeug: * Debugger is active!
-INFO:werkzeug: * Debugger PIN: 674-677-806
-/Users/kimisa/miniconda3/lib/python3.11/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
-/Users/kimisa/miniconda3/lib/python3.11/multiprocessing/resource_tracker.py:224: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
-  warnings.warn('resource_tracker: There appear to be %d '
+INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:17:32] "GET / HTTP/1.1" 200 -
+INFO:__main__:감지된 플랫폼: TikTok
+INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:17:38] "POST / HTTP/1.1" 200 -
+INFO:__main__:감지된 플랫폼: YouTube
+INFO:__main__:다운로드 시작: https://www.youtube.com/watch?v=jNQXAC9IVRw (플랫폼: YouTube)
+INFO:__main__:pytube로 YouTube 다운로드 시작: https://www.youtube.com/watch?v=jNQXAC9IVRw
+ERROR:__main__:pytube 다운로드 실패: HTTP Error 400: Bad Request
+ERROR:__main__:pytube 실패: HTTP Error 400: Bad Request
+INFO:__main__:yt-dlp로 YouTube 다운로드 시도...
+[youtube] Extracting URL: https://www.youtube.com/watch?v=jNQXAC9IVRw
+[youtube] jNQXAC9IVRw: Downloading webpage
+WARNING: [youtube] unable to extract yt initial data; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+WARNING: [youtube] Incomplete data received in embedded initial data; re-fetching using API.
+[youtube] jNQXAC9IVRw: Downloading initial data API JSON
+WARNING: [youtube] jNQXAC9IVRw: Failed to parse JSON (caused by JSONDecodeError("Expecting value in '': line 1 column 1 (char 0)")); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+WARNING: [youtube] unable to extract web client initial player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+[youtube] jNQXAC9IVRw: Downloading tv client config
+[youtube] jNQXAC9IVRw: Downloading iframe API JS
+WARNING: [youtube] unable to extract player version; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+[youtube] jNQXAC9IVRw: Downloading tv player API JSON
+WARNING: [youtube] jNQXAC9IVRw: Failed to parse JSON (caused by JSONDecodeError("Expecting value in '': line 1 column 1 (char 0)")); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+[youtube] jNQXAC9IVRw: Downloading ios player API JSON
+WARNING: [youtube] jNQXAC9IVRw: Failed to parse JSON (caused by JSONDecodeError("Expecting value in '': line 1 column 1 (char 0)")); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+[youtube] jNQXAC9IVRw: Downloading web player API JSON
+WARNING: [youtube] jNQXAC9IVRw: Failed to parse JSON (caused by JSONDecodeError("Expecting value in '': line 1 column 1 (char 0)")); please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+ERROR: [youtube] jNQXAC9IVRw: Failed to extract any player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+INFO:__main__:다운로드 완료: service_info.txt
+INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:17:48] "POST / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:18:03] "GET /file/service_info.txt HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:18:08] "GET / HTTP/1.1" 200 -
