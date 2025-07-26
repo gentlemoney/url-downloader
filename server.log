@@ -33,3 +33,11 @@ ERROR:__main__:pytube 실패: HTTP Error 400: Bad Request
 INFO:__main__:yt-dlp로 YouTube 다운로드 시도...
 ERROR: [youtube] dQw4w9WgXcQ: Failed to extract any player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
 INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:29:08] "POST / HTTP/1.1" 200 -
+INFO:__main__:감지된 플랫폼: YouTube
+INFO:__main__:다운로드 시작: https://www.youtube.com/watch?v=dQw4w9WgXcQ (플랫폼: YouTube)
+INFO:__main__:pytube로 YouTube 다운로드 시작: https://www.youtube.com/watch?v=dQw4w9WgXcQ
+ERROR:__main__:pytube 다운로드 실패: HTTP Error 400: Bad Request
+ERROR:__main__:pytube 실패: HTTP Error 400: Bad Request
+INFO:__main__:yt-dlp로 YouTube 다운로드 시도...
+ERROR: [youtube] dQw4w9WgXcQ: Failed to extract any player response; please report this issue on  https://github.com/yt-dlp/yt-dlp/issues?q= , filling out the appropriate issue template. Confirm you are on the latest version using  yt-dlp -U
+INFO:werkzeug:127.0.0.1 - - [26/Jul/2025 09:36:18] "POST / HTTP/1.1" 200 -
