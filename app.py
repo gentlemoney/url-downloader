@@ -643,6 +643,89 @@ def test():
     <a href="/">← 메인으로 돌아가기</a>
     """
 
+@app.route('/filesystem')
+def filesystem():
+    """파일 시스템 테스트용 엔드포인트"""
+    import datetime
+    import stat
+    
+    try:
+        # 다운로드 폴더 상태 확인
+        folder_exists = os.path.exists(DOWNLOAD_FOLDER)
+        
+        folder_info = {
+            'exists': folder_exists,
+            'absolute_path': os.path.abspath(DOWNLOAD_FOLDER),
+            'writable': os.access(DOWNLOAD_FOLDER, os.W_OK) if folder_exists else False,
+            'readable': os.access(DOWNLOAD_FOLDER, os.R_OK) if folder_exists else False,
+        }
+        
+        if folder_exists:
+            stat_info = os.stat(DOWNLOAD_FOLDER)
+            folder_info.update({
+                'permissions': oct(stat_info.st_mode)[-3:],
+                'uid': stat_info.st_uid,
+                'gid': stat_info.st_gid,
+                'files': os.listdir(DOWNLOAD_FOLDER)
+            })
+        
+        # 테스트 파일 생성 시도
+        test_file_path = os.path.join(DOWNLOAD_FOLDER, 'test.txt')
+        try:
+            with open(test_file_path, 'w') as f:
+                f.write(f"Test file created at {datetime.datetime.now()}")
+            file_created = True
+            
+            # 파일 읽기 테스트
+            with open(test_file_path, 'r') as f:
+                file_content = f.read()
+            
+            # 파일 삭제
+            os.remove(test_file_path)
+            file_deleted = True
+            
+        except Exception as e:
+            file_created = False
+            file_content = str(e)
+            file_deleted = False
+        
+        # /tmp 폴더 확인
+        tmp_info = {
+            'tmp_exists': os.path.exists('/tmp'),
+            'tmp_writable': os.access('/tmp', os.W_OK),
+            'tmp_files_count': len(os.listdir('/tmp')) if os.path.exists('/tmp') else 0
+        }
+        
+        test_result = {
+            'timestamp': datetime.datetime.now().isoformat(),
+            'download_folder': DOWNLOAD_FOLDER,
+            'folder_info': folder_info,
+            'file_test': {
+                'created': file_created,
+                'content': file_content[:100] if file_created else file_content,
+                'deleted': file_deleted
+            },
+            'tmp_info': tmp_info,
+            'current_user': os.environ.get('USER', 'unknown'),
+            'current_working_dir': os.getcwd()
+        }
+        
+        return f"""
+        <h1>🗂️ 파일 시스템 테스트</h1>
+        <pre>{json.dumps(test_result, indent=2, ensure_ascii=False)}</pre>
+        <br>
+        <a href="/">← 메인으로 돌아가기</a>
+        <a href="/test">환경 정보</a>
+        """
+        
+    except Exception as e:
+        return f"""
+        <h1>❌ 파일 시스템 테스트 실패</h1>
+        <pre>Error: {str(e)}</pre>
+        <br>
+        <a href="/">← 메인으로 돌아가기</a>
+        """
+
 @app.route('/', methods=['POST'])
 def download():
     url = request.form.get('url', '').strip()
