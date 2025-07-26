@@ -1147,20 +1147,35 @@ def download():
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
     
-    # 플랫폼별 최적화된 옵션 가져오기
-    ydl_opts = get_platform_specific_options(platform)
-    ydl_opts['outtmpl'] = outtmpl
-    
     try:
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
-        logger.info(f"yt-dlp 옵션: {ydl_opts}")
         
-        # 모든 플랫폼에 대해 단순한 yt-dlp 설정 사용
-        simple_opts = {
+        # YouTube에 대한 특별 처리
+        if platform == 'YouTube':
+            try:
+                # 먼저 pytube로 시도
+                filename = download_youtube_with_pytube(url, outtmpl)
+                if filename and os.path.exists(filename):
+                    base = os.path.basename(filename)
+                    logger.info(f"pytube로 다운로드 완료: {base}")
+                    return send_file(filename, as_attachment=True, download_name=base)
+            except Exception as pytube_error:
+                logger.error(f"pytube 실패: {str(pytube_error)}")
+                # pytube 실패시 yt-dlp 계속 시도
+        
+        # yt-dlp 설정 - 더 강화된 헤더와 옵션
+        ydl_opts = {
             'format': 'best[ext=mp4]/best',
             'outtmpl': outtmpl,
-            'quiet': True,
-            'no_warnings': True,
+            'quiet': False,
+            'no_warnings': False,
+            'ignoreerrors': True,
+            'nocheckcertificate': True,
+            'extractor_retries': 3,
+            'socket_timeout': 30,
+            'retries': 3,
+            'fragment_retries': 3,
+            'file_access_retries': 3,
             'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -1168,71 +1183,82 @@ def download():
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1'
+                'Upgrade-Insecure-Requests': '1',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
             }
         }
         
-        with yt_dlp.YoutubeDL(simple_opts) as ydl:
-            ydl.download([url])
+        # YouTube인 경우 특별한 설정 추가
+        if platform == 'YouTube':
+            ydl_opts.update({
+                'extractor_retries': 5,
+                'retries': 5,
+                'extract_flat': False,
+                'age_limit': None,
+                'skip_download': False,
+                'writesubtitles': False,
+                'writeautomaticsub': False
+            })
         
-        # 파일 찾기
-        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
+        logger.info(f"yt-dlp 옵션: {ydl_opts}")
+        
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
+            try:
+                logger.info("영상 정보 추출 시작...")
+                info = ydl.extract_info(url, download=False)
+                if not info:
+                    raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
+                
+                title = info.get('title', 'Unknown')
+                duration = info.get('duration', 'Unknown')
+                logger.info(f"영상 제목: {title}, 길이: {duration}초")
+                
+                # 실제 다운로드 실행
+                logger.info("실제 다운로드 시작...")
+                ydl.download([url])
+                
+            except Exception as extract_error:
+                logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
+                # YouTube인 경우 특별한 에러 메시지 제공
+                if platform == 'YouTube':
+                    if 'Sign in to confirm' in str(extract_error) or 'bot' in str(extract_error).lower():
+                        raise Exception("YouTube가 봇 차단을 적용했습니다. 다른 YouTube URL을 시도하거나 잠시 후 다시 시도해주세요.")
+                    elif 'Failed to extract' in str(extract_error):
+                        raise Exception("YouTube 영상에 접근할 수 없습니다. 영상이 비공개이거나 삭제되었을 수 있습니다.")
+                
+                # 정보 추출 실패시에도 직접 다운로드 시도
+                logger.info("정보 추출 실패했지만 직접 다운로드 시도...")
+                try:
+                    ydl.download([url])
+                except Exception as download_error:
+                    # YouTube 특별 처리
+                    if platform == 'YouTube':
+                        error_str = str(download_error).lower()
+                        if 'sign in' in error_str or 'bot' in error_str:
+                            raise Exception("YouTube 봇 차단이 감지되었습니다. 현재 YouTube 다운로드에 제한이 있습니다. TikTok, Instagram, Reddit 등 다른 플랫폼을 사용해주세요.")
+                        elif 'private' in error_str or 'unavailable' in error_str:
+                            raise Exception("이 YouTube 영상은 비공개이거나 사용할 수 없습니다.")
+                    raise download_error
+        
+        # 다운로드된 파일 찾기
+        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv', '.m4a', '.mp3'))]
         if files:
+            # 가장 최근 파일 선택
             files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
             filename = os.path.join(DOWNLOAD_FOLDER, files[0])
             base = os.path.basename(filename)
             logger.info(f"다운로드 완료: {base}")
+            
+            # 다운로드 성공시 바로 파일 다운로드
+            return send_file(filename, as_attachment=True, download_name=base)
         else:
             raise Exception("다운로드된 파일을 찾을 수 없습니다.")
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
-                try:
-                    logger.info("영상 정보 추출 시작...")
-                    info = ydl.extract_info(url, download=False)
-                    if not info:
-                        raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
-                    
-                    title = info.get('title', 'Unknown')
-                    duration = info.get('duration', 'Unknown')
-                    logger.info(f"영상 제목: {title}, 길이: {duration}초")
-                    
-                    # 실제 다운로드 실행
-                    logger.info("실제 다운로드 시작...")
-                    ydl.download([url])
-                    
-                    # 다운로드된 파일 찾기
-                    filename = ydl.prepare_filename(info)
-                    logger.info(f"예상 파일명: {filename}")
-                    
-                    # 실제 다운로드된 파일 찾기
-                    if not filename or not os.path.exists(filename):
-                        # downloads 폴더에서 가장 최근 파일 찾기
-                        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
-                        if files:
-                            # 가장 최근 파일 선택
-                            files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
-                            filename = os.path.join(DOWNLOAD_FOLDER, files[0])
-                            logger.info(f"찾은 파일: {filename}")
-                        else:
-                            raise Exception("다운로드된 파일을 찾을 수 없습니다.")
-                    
-                    # 파일 확장자 확인 및 변환
-                    if not filename.endswith('.mp4'):
-                        base_name = os.path.splitext(filename)[0]
-                        new_filename = base_name + '.mp4'
-                        if os.path.exists(filename):
-                            os.rename(filename, new_filename)
-                            filename = new_filename
-                    
-                    base = os.path.basename(filename)
-                    logger.info(f"다운로드 완료: {base}")
-                
-                except Exception as extract_error:
-                    logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
-                    raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
-        
-        # 다운로드 성공시 바로 파일 다운로드
-        return send_file(filename, as_attachment=True, download_name=base)
         
     except Exception as e:
         error_msg = f"다운로드 실패: {str(e)}"
