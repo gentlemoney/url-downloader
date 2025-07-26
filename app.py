@@ -887,6 +887,122 @@ def file(filename):
         print(f"❌ 파일이 존재하지 않음: {path}", flush=True)
         return "파일을 찾을 수 없습니다.", 404
 
+@app.route('/download-test')
+def download_test():
+    """다운로드 라이브러리 테스트용 엔드포인트"""
+    import datetime
+    
+    test_url = "https://www.youtube.com/watch?v=jNQXAC9IVRw"  # 짧은 YouTube 영상
+    test_results = {
+        'timestamp': datetime.datetime.now().isoformat(),
+        'test_url': test_url,
+        'download_folder': DOWNLOAD_FOLDER,
+        'tests': []
+    }
+    
+    # 테스트 1: yt-dlp 간단 버전
+    try:
+        print("🧪 yt-dlp 간단 테스트 시작", flush=True)
+        
+        simple_opts = {
+            'format': 'worst',
+            'outtmpl': os.path.join(DOWNLOAD_FOLDER, 'ytdlp_test.%(ext)s'),
+            'quiet': True,
+            'no_warnings': True
+        }
+        
+        with yt_dlp.YoutubeDL(simple_opts) as ydl:
+            info = ydl.extract_info(test_url, download=False)
+            title = info.get('title', 'Unknown')
+            duration = info.get('duration', 0)
+            
+            if duration and duration < 60:  # 1분 미만 영상만
+                ydl.download([test_url])
+                
+                # 파일 확인
+                files = [f for f in os.listdir(DOWNLOAD_FOLDER) if 'ytdlp_test' in f]
+                
+                test_results['tests'].append({
+                    'method': 'yt-dlp',
+                    'status': 'success',
+                    'title': title,
+                    'duration': duration,
+                    'files_created': files
+                })
+            else:
+                test_results['tests'].append({
+                    'method': 'yt-dlp',
+                    'status': 'skipped',
+                    'reason': f'Video too long: {duration}s'
+                })
+                
+    except Exception as e:
+        test_results['tests'].append({
+            'method': 'yt-dlp',
+            'status': 'error',
+            'error': str(e)
+        })
+    
+    # 테스트 2: pytube 간단 버전
+    try:
+        print("🧪 pytube 간단 테스트 시작", flush=True)
+        
+        yt = YouTube(test_url)
+        title = yt.title
+        duration = yt.length
+        
+        if duration and duration < 60:  # 1분 미만 영상만
+            stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').first()
+            if stream:
+                filename = os.path.join(DOWNLOAD_FOLDER, 'pytube_test.mp4')
+                stream.download(output_path=DOWNLOAD_FOLDER, filename='pytube_test.mp4')
+                
+                # 파일 확인
+                files = [f for f in os.listdir(DOWNLOAD_FOLDER) if 'pytube_test' in f]
+                
+                test_results['tests'].append({
+                    'method': 'pytube',
+                    'status': 'success',
+                    'title': title,
+                    'duration': duration,
+                    'files_created': files
+                })
+            else:
+                test_results['tests'].append({
+                    'method': 'pytube',
+                    'status': 'error',
+                    'error': 'No suitable stream found'
+                })
+        else:
+            test_results['tests'].append({
+                'method': 'pytube',
+                'status': 'skipped',
+                'reason': f'Video too long: {duration}s'
+            })
+            
+    except Exception as e:
+        test_results['tests'].append({
+            'method': 'pytube',
+            'status': 'error',
+            'error': str(e)
+        })
+    
+    # 최종 파일 목록
+    try:
+        final_files = os.listdir(DOWNLOAD_FOLDER)
+        test_results['final_files'] = final_files
+    except Exception as e:
+        test_results['final_files'] = f"Error: {str(e)}"
+    
+    return f"""
+    <h1>🧪 다운로드 라이브러리 테스트</h1>
+    <pre>{json.dumps(test_results, indent=2, ensure_ascii=False)}</pre>
+    <br>
+    <a href="/">← 메인으로 돌아가기</a>
+    <a href="/filesystem">파일 시스템</a>
+    <a href="/test">환경 정보</a>
+    """
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     host = '0.0.0.0' if IS_SERVER_ENV else 'localhost'
