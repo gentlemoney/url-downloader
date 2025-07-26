@@ -263,10 +263,12 @@ def normalize_facebook_url(url):
         r'https?://(?:www\.)?facebook\.com/video\.php\?v=\d+',
         r'https?://(?:www\.)?facebook\.com/watch/\?v=\d+',
         r'https?://(?:www\.)?facebook\.com/reel/\d+',
+        r'https?://(?:www\.)?facebook\.com/share/v/[^/?]+',
         r'https?://(?:www\.)?fb\.com/[^/]+/videos/\d+',
         r'https?://(?:www\.)?fb\.com/video\.php\?v=\d+',
         r'https?://(?:www\.)?fb\.com/watch/\?v=\d+',
         r'https?://(?:www\.)?fb\.com/reel/\d+',
+        r'https?://(?:www\.)?fb\.com/share/v/[^/?]+',
     ]
     
     for pattern in patterns:
@@ -454,31 +456,16 @@ def get_platform_specific_options(platform):
         })
     elif platform == 'Facebook':
         base_options.update({
-            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
             'cookiesfrombrowser': ('chrome',),
             'extract_flat': False,
             'ignoreerrors': True,
-            'extractor_retries': 5,
+            'extractor_retries': 3,
             'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'nocheckcertificate': True,
             'no_warnings': False,
             'quiet': False,
-            'extractaudio': False,
-            'audioformat': 'mp3',
-            'audioquality': '0',
-            'recodevideo': 'mp4',
-            'postprocessors': [{
-                'key': 'FFmpegVideoConvertor',
-                'preferedformat': 'mp4',
-            }],
-            'prefer_ffmpeg': True,
-            'keepvideo': True,
-            'writesubtitles': False,
-            'writeautomaticsub': False,
-            'subtitleslangs': ['en'],
-            'skip_download': False,
-            'outtmpl': '%(title)s.%(ext)s',
             # Facebook 전용 추가 옵션
             'http_headers': {
                 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -487,15 +474,7 @@ def get_platform_specific_options(platform):
                 'Accept-Encoding': 'gzip, deflate, br',
                 'Connection': 'keep-alive',
                 'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache',
             },
-            'cookiefile': None,  # 쿠키 파일 사용 안함
-            'cookiesfrombrowser': ('chrome', 'firefox', 'safari'),  # 여러 브라우저에서 쿠키 시도
         })
     else:  # YouTube 및 기타
         base_options.update({
