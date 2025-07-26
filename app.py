@@ -23,13 +23,13 @@ def detect_platform(url):
         return 'YouTube', 'fab fa-youtube', '#FF0000'
     elif 'tiktok.com' in url_lower:
         return 'TikTok', 'fab fa-tiktok', '#000000'
-    elif 'instagram.com' in url_lower:
+    elif 'instagram.com' in url_lower or 'instagr.am' in url_lower:
         return 'Instagram', 'fab fa-instagram', '#E4405F'
     elif 'reddit.com' in url_lower:
         return 'Reddit', 'fab fa-reddit', '#FF4500'
     elif 'twitter.com' in url_lower or 'x.com' in url_lower:
         return 'Twitter/X', 'fab fa-twitter', '#1DA1F2'
-    elif 'facebook.com' in url_lower:
+    elif 'facebook.com' in url_lower or 'fb.com' in url_lower:
         return 'Facebook', 'fab fa-facebook', '#1877F2'
     else:
         return 'Unknown', 'fas fa-video', '#666666'
@@ -53,13 +53,29 @@ def get_platform_specific_options(platform):
         })
     elif platform == 'Instagram':
         base_options.update({
-            'format': 'best[ext=mp4]/best',
+            'format': 'best[ext=mp4]/best[height<=1080]/best',
             'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),  # Instagram은 로그인 필요할 수 있음
+            'extract_flat': False,
+            'ignoreerrors': True,  # Instagram은 일부 콘텐츠에 접근 제한이 있을 수 있음
+            'extractor_retries': 5,  # Instagram은 재시도가 필요할 수 있음
         })
     elif platform == 'Reddit':
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
+        })
+    elif platform == 'Twitter/X':
+        base_options.update({
+            'format': 'best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),
+        })
+    elif platform == 'Facebook':
+        base_options.update({
+            'format': 'best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),
         })
     else:  # YouTube 및 기타
         base_options.update({
@@ -379,6 +395,7 @@ HTML_FORM = '''
           <div class="platform-item">
             <i class="fab fa-instagram" style="color: #E4405F;"></i>
             <span>Instagram</span>
+            <small style="color: #666; font-size: 0.8em;">(Reels, Stories, Posts)</small>
           </div>
           <div class="platform-item">
             <i class="fab fa-reddit" style="color: #FF4500;"></i>
@@ -392,6 +409,10 @@ HTML_FORM = '''
             <i class="fab fa-facebook" style="color: #1877F2;"></i>
             <span>Facebook</span>
           </div>
+        </div>
+        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9em; color: #856404;">
+          <i class="fas fa-info-circle"></i>
+          <strong>Instagram 팁:</strong> Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.
         </div>
       </div>
       
@@ -432,7 +453,7 @@ HTML_FORM = '''
             platform = 'TikTok';
             icon = 'fab fa-tiktok';
             color = '#000000';
-          } else if (urlLower.includes('instagram.com')) {
+          } else if (urlLower.includes('instagram.com') || urlLower.includes('instagr.am')) {
             platform = 'Instagram';
             icon = 'fab fa-instagram';
             color = '#E4405F';
@@ -444,7 +465,7 @@ HTML_FORM = '''
             platform = 'Twitter/X';
             icon = 'fab fa-twitter';
             color = '#1DA1F2';
-          } else if (urlLower.includes('facebook.com')) {
+          } else if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) {
             platform = 'Facebook';
             icon = 'fab fa-facebook';
             color = '#1877F2';
