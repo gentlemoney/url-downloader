@@ -15,6 +15,26 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def normalize_reddit_url(url):
+    """Reddit URL을 정규화합니다."""
+    import re
+    
+    # Reddit URL 패턴들
+    patterns = [
+        r'https?://(?:www\.)?reddit\.com/r/[^/]+/comments/[^/]+/[^/]+/?',
+        r'https?://(?:www\.)?reddit\.com/r/[^/]+/comments/[^/]+/?',
+        r'https?://v\.redd\.it/[^/]+',
+        r'https?://(?:www\.)?reddit\.com/gallery/[^/]+',
+    ]
+    
+    for pattern in patterns:
+        if re.match(pattern, url):
+            # URL 끝의 슬래시 제거
+            url = url.rstrip('/')
+            return url
+    
+    return url
+
 def detect_platform(url):
     """URL에서 플랫폼을 감지합니다."""
     url_lower = url.lower()
@@ -69,9 +89,28 @@ def get_platform_specific_options(platform):
             'format': 'best[ext=mp4]/best[height<=1080]/best',
             'merge_output_format': 'mp4',
             'extract_flat': False,
-            'ignoreerrors': True,  # Reddit은 일부 콘텐츠에 접근 제한이 있을 수 있음
-            'extractor_retries': 3,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',  # Reddit은 User-Agent가 중요
+            'ignoreerrors': True,
+            'extractor_retries': 5,
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'cookiesfrombrowser': ('chrome',),
+            'nocheckcertificate': True,
+            'no_warnings': False,
+            'quiet': False,
+            'extractaudio': False,
+            'audioformat': 'mp3',
+            'audioquality': '0',
+            'recodevideo': 'mp4',
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'prefer_ffmpeg': True,
+            'keepvideo': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'subtitleslangs': ['en'],
+            'skip_download': False,
+            'outtmpl': '%(title)s.%(ext)s',
         })
     elif platform == 'Twitter/X':
         base_options.update({
@@ -519,6 +558,12 @@ def download():
     platform, icon, color = detect_platform(url)
     logger.info(f"감지된 플랫폼: {platform}")
     
+    # Reddit URL 정규화
+    if platform == 'Reddit':
+        original_url = url
+        url = normalize_reddit_url(url)
+        logger.info(f"Reddit URL 정규화: {original_url} -> {url}")
+    
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
     
@@ -528,17 +573,22 @@ def download():
     
     try:
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
+        logger.info(f"yt-dlp 옵션: {ydl_opts}")
+        
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
             try:
+                logger.info("영상 정보 추출 시작...")
                 info = ydl.extract_info(url, download=False)
                 if not info:
                     raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
                 
                 title = info.get('title', 'Unknown')
-                logger.info(f"영상 제목: {title}")
+                duration = info.get('duration', 'Unknown')
+                logger.info(f"영상 제목: {title}, 길이: {duration}초")
                 
                 # 실제 다운로드 실행
+                logger.info("실제 다운로드 시작...")
                 ydl.download([url])
                 
                 # 다운로드된 파일 찾기
