@@ -6,6 +6,7 @@ import logging
 import requests
 import json
 import re
+
 from urllib.parse import urlparse, parse_qs
 
 app = Flask(__name__)
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
+
+
 
 def normalize_threads_url(url):
     """Threads URL을 정규화합니다."""
@@ -357,7 +360,7 @@ HTML_FORM = '''
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>소셜 미디어 다운로드 - gptkimisa.com</title>
+    <title>소셜 미디어 다운로드 - 마케팅 김이사</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
       * {
@@ -374,16 +377,34 @@ HTML_FORM = '''
         align-items: center;
         justify-content: center;
         padding: 20px;
+        position: relative;
+        overflow-x: hidden;
+      }
+      
+      body::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="white" opacity="0.1"/><circle cx="10" cy="60" r="0.5" fill="white" opacity="0.1"/><circle cx="90" cy="40" r="0.5" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+        pointer-events: none;
+        z-index: 1;
       }
       
       .container {
-        background: white;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-        padding: 40px;
-        max-width: 700px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 25px;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        padding: 50px;
+        max-width: 800px;
         width: 100%;
         text-align: center;
+        position: relative;
+        z-index: 2;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
       
       .logo {
@@ -392,13 +413,145 @@ HTML_FORM = '''
       
       .logo h1 {
         color: #333;
-        font-size: 2.5em;
-        margin-bottom: 10px;
+        font-size: 2.8em;
+        margin-bottom: 15px;
+        font-weight: 700;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.1);
       }
       
       .logo p {
         color: #666;
+        font-size: 1.2em;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+      
+      .brand-intro {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 15px;
+        margin: 30px 0;
+        text-align: left;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .brand-intro::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -50%;
+        width: 200%;
+        height: 200%;
+        background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+        animation: float 6s ease-in-out infinite;
+      }
+      
+      @keyframes float {
+        0%, 100% { transform: translateY(0px) rotate(0deg); }
+        50% { transform: translateY(-20px) rotate(180deg); }
+      }
+      
+      .brand-intro h3 {
+        margin: 0 0 15px 0;
+        font-size: 1.4em;
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
+      }
+      
+      .brand-intro p {
+        margin: 0;
         font-size: 1.1em;
+        line-height: 1.6;
+        position: relative;
+        z-index: 1;
+      }
+      
+      .brand-intro .highlight {
+        background: rgba(255,255,255,0.2);
+        padding: 2px 8px;
+        border-radius: 5px;
+        font-weight: 600;
+      }
+      
+      .course-link {
+        display: inline-block;
+        background: rgba(255,255,255,0.15);
+        color: white;
+        text-decoration: none;
+        padding: 8px 16px;
+        border-radius: 8px;
+        margin-top: 8px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        border: 1px solid rgba(255,255,255,0.2);
+        backdrop-filter: blur(5px);
+      }
+      
+      .course-link:hover {
+        background: rgba(255,255,255,0.25);
+        transform: translateY(-2px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        color: white;
+        text-decoration: none;
+      }
+      
+      .course-link i {
+        margin-right: 8px;
+        color: #FFD700;
+      }
+      
+      .tips-section {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+        margin: 30px 0;
+      }
+      
+      .tip-card {
+        display: flex;
+        align-items: flex-start;
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.8);
+        backdrop-filter: blur(5px);
+        border-radius: 15px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+      }
+      
+      .tip-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        background: rgba(255, 255, 255, 0.95);
+      }
+      
+      .tip-icon {
+        font-size: 2em;
+        margin-right: 15px;
+        margin-top: 5px;
+        min-width: 40px;
+        text-align: center;
+      }
+      
+      .tip-content h4 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 1.1em;
+        font-weight: 600;
+      }
+      
+      .tip-content p {
+        margin: 0 0 10px 0;
+        color: #666;
+        line-height: 1.5;
+      }
+      
+      .tip-content small {
+        color: #888;
+        font-size: 0.85em;
+        line-height: 1.4;
       }
       
       .input-group {
@@ -407,36 +560,56 @@ HTML_FORM = '''
       
       .url-input {
         width: 100%;
-        padding: 15px 20px;
+        padding: 18px 25px;
         border: 2px solid #e1e5e9;
-        border-radius: 10px;
+        border-radius: 15px;
         font-size: 16px;
         transition: all 0.3s ease;
-        margin-bottom: 15px;
+        margin-bottom: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(5px);
       }
       
       .url-input:focus {
         outline: none;
         border-color: #667eea;
-        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15);
+        transform: translateY(-2px);
       }
       
       .download-btn {
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
-        padding: 15px 40px;
-        border-radius: 10px;
-        font-size: 16px;
+        padding: 18px 40px;
+        border-radius: 15px;
+        font-size: 18px;
         font-weight: bold;
         cursor: pointer;
         transition: all 0.3s ease;
         width: 100%;
+        position: relative;
+        overflow: hidden;
+      }
+      
+      .download-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        transition: left 0.5s;
+      }
+      
+      .download-btn:hover::before {
+        left: 100%;
       }
       
       .download-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
       }
       
       .download-btn:disabled {
@@ -503,24 +676,27 @@ HTML_FORM = '''
       
       .platforms {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 15px;
-        margin: 30px 0;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 20px;
+        margin: 40px 0;
       }
       
       .platform-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        padding: 15px;
-        background: #f8f9fa;
-        border-radius: 10px;
+        padding: 20px;
+        background: rgba(248, 249, 250, 0.8);
+        backdrop-filter: blur(5px);
+        border-radius: 15px;
         transition: all 0.3s ease;
+        border: 1px solid rgba(255, 255, 255, 0.2);
       }
       
       .platform-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        background: rgba(255, 255, 255, 0.9);
       }
       
       .platform-item i {
@@ -542,29 +718,47 @@ HTML_FORM = '''
       .features {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-top: 40px;
+        gap: 25px;
+        margin-top: 50px;
       }
       
       .feature {
         text-align: center;
-        padding: 20px;
+        padding: 25px;
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(5px);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        transition: all 0.3s ease;
+      }
+      
+      .feature:hover {
+        transform: translateY(-5px);
+        background: rgba(255, 255, 255, 0.9);
+        box-shadow: 0 15px 35px rgba(0,0,0,0.1);
       }
       
       .feature i {
-        font-size: 2.5em;
-        color: #667eea;
-        margin-bottom: 15px;
+        font-size: 3em;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 20px;
+        display: block;
       }
       
       .feature h3 {
         color: #333;
-        margin-bottom: 10px;
+        margin-bottom: 15px;
+        font-size: 1.3em;
+        font-weight: 600;
       }
       
       .feature p {
         color: #666;
-        line-height: 1.5;
+        line-height: 1.6;
+        font-size: 1em;
       }
       
       .loading {
@@ -613,6 +807,18 @@ HTML_FORM = '''
         <p>YouTube, TikTok, Instagram, Reddit, Twitter/X 비디오를 쉽게 다운로드하세요</p>
       </div>
       
+      <div class="brand-intro">
+        <h3><i class="fas fa-user-tie"></i> 마케팅 김이사가 만든 서비스</h3>
+        <p>내가 <span class="highlight">콘텐츠 제작</span>을 할 때 필요해서 만든 서비스이고, <span class="highlight">무료로 제공</span>하니 편하게 사용해주세요! 🎬</p>
+        <p style="margin-top: 15px; font-size: 1em; opacity: 0.9;">
+          도움이 되었다면 제 강의도 봐주세요! 📚
+          <br>
+          <a href="https://ubran.co.kr/shop_view/?idx=80" target="_blank" class="course-link">
+            <i class="fas fa-graduation-cap"></i> 스레드 4주 5,000명 빠르게 키워서 수익화 하기 강의
+          </a>
+        </p>
+      </div>
+      
       <form method="POST" action="/download" id="downloadForm">
         <div class="input-group">
           <input type="text" name="url" id="urlInput" class="url-input" placeholder="비디오 URL을 입력하세요..." required>
@@ -659,21 +865,34 @@ HTML_FORM = '''
         </div>
       </div>
       
-      <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9em; color: #856404;">
-        <i class="fas fa-info-circle"></i>
-        <strong>Instagram 팁:</strong> Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.
-      </div>
-      <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; font-size: 0.9em; color: #0c5460;">
-        <i class="fas fa-info-circle"></i>
-        <strong>Reddit 팁:</strong> Reddit Videos, GIFs, v.redd.it 링크를 지원합니다. 대부분 공개 콘텐츠입니다.
-        <br><small style="color: #0a4b52;">💡 Reddit은 공유 버튼이 없어서 브라우저 주소창의 URL을 복사해서 사용하세요!</small>
-        <br><small style="color: #0a4b52;">📝 예시: https://www.reddit.com/r/aivideo/comments/1m9hn4u/cool_veo_3_ability/</small>
-      </div>
-      <div style="margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 5px; font-size: 0.9em; color: #155724;">
-        <i class="fas fa-info-circle"></i>
-        <strong>Twitter/X 팁:</strong> Twitter와 X.com 비디오를 지원합니다. 공개 트윗의 비디오만 다운로드 가능합니다.
-        <br><small style="color: #0f5132;">💡 Twitter/X는 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
-        <br><small style="color: #0f5132;">📝 예시: https://twitter.com/username/status/1234567890</small>
+      <div class="tips-section">
+        <div class="tip-card">
+          <div class="tip-icon"><i class="fab fa-instagram"></i></div>
+          <div class="tip-content">
+            <h4>Instagram 팁</h4>
+            <p>Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.</p>
+          </div>
+        </div>
+        
+        <div class="tip-card">
+          <div class="tip-icon"><i class="fab fa-reddit"></i></div>
+          <div class="tip-content">
+            <h4>Reddit 팁</h4>
+            <p>Reddit Videos, GIFs, v.redd.it 링크를 지원합니다. 대부분 공개 콘텐츠입니다.</p>
+            <small>💡 Reddit은 공유 버튼이 없어서 브라우저 주소창의 URL을 복사해서 사용하세요!</small>
+            <br><small>📝 예시: https://www.reddit.com/r/aivideo/comments/1m9hn4u/cool_veo_3_ability/</small>
+          </div>
+        </div>
+        
+        <div class="tip-card">
+          <div class="tip-icon"><i class="fab fa-twitter"></i></div>
+          <div class="tip-content">
+            <h4>Twitter/X 팁</h4>
+            <p>Twitter와 X.com 비디오를 지원합니다. 공개 트윗의 비디오만 다운로드 가능합니다.</p>
+            <small>💡 Twitter/X는 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
+            <br><small>📝 예시: https://twitter.com/username/status/1234567890</small>
+          </div>
+        </div>
       </div>
       
       <div class="features">
