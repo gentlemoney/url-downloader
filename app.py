@@ -44,60 +44,108 @@ def download_threads_video(url, outtmpl):
     import json
     
     try:
-        # User-Agent 설정
+        # 더 강력한 헤더 설정
         headers = {
             'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Accept-Encoding': 'gzip, deflate, br',
             'Connection': 'keep-alive',
             'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'max-age=0',
         }
         
         # Threads 페이지 가져오기
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=15)
         response.raise_for_status()
         
         # 페이지에서 비디오 URL 찾기
         page_content = response.text
         logger.info(f"Threads 페이지 내용 길이: {len(page_content)}")
         
-        # 다양한 패턴으로 비디오 URL 찾기
-        video_patterns = [
-            r'"video_url":"([^"]+)"',
-            r'"video_url":"([^"]+)"',
-            r'<video[^>]+src="([^"]+)"',
-            r'"media_url":"([^"]+)"',
-            r'"url":"([^"]+\.mp4[^"]*)"',
-            r'"video_url":"([^"]+\.mp4[^"]*)"',
-            r'"media_url":"([^"]+\.mp4[^"]*)"',
-            r'"url":"([^"]+)"',
-            r'"src":"([^"]+\.mp4[^"]*)"',
-            r'"contentUrl":"([^"]+\.mp4[^"]*)"',
-            r'"content_url":"([^"]+\.mp4[^"]*)"',
-            r'"playbackUrl":"([^"]+\.mp4[^"]*)"',
-            r'"playback_url":"([^"]+\.mp4[^"]*)"',
-            r'"streamUrl":"([^"]+\.mp4[^"]*)"',
-            r'"stream_url":"([^"]+\.mp4[^"]*)"',
+        # JSON 데이터 찾기 (Threads는 JSON 형태로 데이터를 저장)
+        json_patterns = [
+            r'<script[^>]*>window\.__INITIAL_STATE__\s*=\s*({[^<]+})</script>',
+            r'<script[^>]*>window\.__APOLLO_STATE__\s*=\s*({[^<]+})</script>',
+            r'<script[^>]*>window\.__NEXT_DATA__\s*=\s*({[^<]+})</script>',
+            r'"__INITIAL_STATE__":\s*({[^}]+})',
+            r'"__APOLLO_STATE__":\s*({[^}]+})',
         ]
         
         video_url = None
-        for pattern in video_patterns:
-            matches = re.findall(pattern, page_content)
+        
+        # JSON 데이터에서 비디오 URL 찾기
+        for pattern in json_patterns:
+            matches = re.findall(pattern, page_content, re.DOTALL)
             for match in matches:
-                if '.mp4' in match or 'video' in match.lower() or 'cdninstagram' in match:
-                    video_url = match.replace('\\u0026', '&').replace('\\/', '/')
-                    break
+                try:
+                    # JSON 파싱 시도
+                    json_data = json.loads(match)
+                    logger.info(f"JSON 데이터 발견: {type(json_data)}")
+                    
+                    # JSON에서 비디오 URL 찾기
+                    def find_video_url(obj):
+                        if isinstance(obj, dict):
+                            for key, value in obj.items():
+                                if isinstance(value, str) and ('.mp4' in value or 'cdninstagram' in value):
+                                    return value
+                                elif isinstance(value, (dict, list)):
+                                    result = find_video_url(value)
+                                    if result:
+                                        return result
+                        elif isinstance(obj, list):
+                            for item in obj:
+                                result = find_video_url(item)
+                                if result:
+                                    return result
+                        return None
+                    
+                    video_url = find_video_url(json_data)
+                    if video_url:
+                        break
+                except json.JSONDecodeError:
+                    continue
             if video_url:
                 break
         
+        # JSON에서 찾지 못했다면 일반 패턴으로 찾기
         if not video_url:
-            raise Exception("비디오 URL을 찾을 수 없습니다.")
+            video_patterns = [
+                r'"video_url":"([^"]+\.mp4[^"]*)"',
+                r'"media_url":"([^"]+\.mp4[^"]*)"',
+                r'"url":"([^"]+\.mp4[^"]*)"',
+                r'"src":"([^"]+\.mp4[^"]*)"',
+                r'"contentUrl":"([^"]+\.mp4[^"]*)"',
+                r'"content_url":"([^"]+\.mp4[^"]*)"',
+                r'"playbackUrl":"([^"]+\.mp4[^"]*)"',
+                r'"playback_url":"([^"]+\.mp4[^"]*)"',
+                r'"streamUrl":"([^"]+\.mp4[^"]*)"',
+                r'"stream_url":"([^"]+\.mp4[^"]*)"',
+                r'"video_url":"([^"]+)"',
+                r'"media_url":"([^"]+)"',
+                r'"url":"([^"]+)"',
+            ]
+            
+            for pattern in video_patterns:
+                matches = re.findall(pattern, page_content)
+                for match in matches:
+                    if '.mp4' in match or 'video' in match.lower() or 'cdninstagram' in match:
+                        video_url = match.replace('\\u0026', '&').replace('\\/', '/')
+                        break
+                if video_url:
+                    break
+        
+        if not video_url:
+            raise Exception("비디오 URL을 찾을 수 없습니다. Threads는 JavaScript 렌더링을 사용하므로 직접 다운로드가 어려울 수 있습니다.")
         
         logger.info(f"Threads 비디오 URL 발견: {video_url}")
         
         # 비디오 다운로드
-        video_response = requests.get(video_url, headers=headers, stream=True)
+        video_response = requests.get(video_url, headers=headers, stream=True, timeout=30)
         video_response.raise_for_status()
         
         # 파일 저장
@@ -843,28 +891,29 @@ def download():
         url = normalize_facebook_url(url)
         logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
     
-    # Threads URL 정규화 및 직접 다운로드
+    # Threads URL 정규화 및 Instagram 변환 우선 시도
     if platform == 'Threads':
         original_url = url
         url = normalize_threads_url(url)
         logger.info(f"Threads URL 정규화: {original_url} -> {url}")
         
-        try:
-            # Threads 직접 다운로드 시도
-            threads_outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
-            filename = download_threads_video(url, threads_outtmpl)
-            base = os.path.basename(filename)
-            logger.info(f"Threads 직접 다운로드 완료: {base}")
-            return render_template_string(HTML_FORM, filename=base)
-        except Exception as threads_error:
-            logger.warning(f"Threads 직접 다운로드 실패, Instagram 변환 시도: {str(threads_error)}")
-            # 실패하면 Instagram 변환 시도
-            instagram_url = convert_threads_to_instagram_url(url)
-            if instagram_url != url:
-                logger.info(f"Threads URL을 Instagram URL로 변환: {url} -> {instagram_url}")
-                url = instagram_url
-                platform = 'Instagram'  # Instagram으로 플랫폼 변경
-            else:
+        # Instagram 변환을 먼저 시도
+        instagram_url = convert_threads_to_instagram_url(url)
+        if instagram_url != url:
+            logger.info(f"Threads URL을 Instagram URL로 변환: {url} -> {instagram_url}")
+            url = instagram_url
+            platform = 'Instagram'  # Instagram으로 플랫폼 변경
+        else:
+            # Instagram 변환이 안되면 직접 다운로드 시도
+            try:
+                logger.info("Instagram 변환 실패, Threads 직접 다운로드 시도")
+                threads_outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
+                filename = download_threads_video(url, threads_outtmpl)
+                base = os.path.basename(filename)
+                logger.info(f"Threads 직접 다운로드 완료: {base}")
+                return render_template_string(HTML_FORM, filename=base)
+            except Exception as threads_error:
+                logger.error(f"Threads 직접 다운로드도 실패: {str(threads_error)}")
                 raise threads_error
     
     # 고유 파일명 생성
