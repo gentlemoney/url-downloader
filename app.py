@@ -15,6 +15,26 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def convert_threads_to_instagram_url(url):
+    """Threads URL을 Instagram URL로 변환합니다."""
+    import re
+    
+    # Threads URL에서 post ID 추출
+    patterns = [
+        r'https?://(?:www\.)?threads\.(?:net|com)/@[^/]+/post/([^/?]+)',
+        r'https?://(?:www\.)?threads\.(?:net|com)/t/([^/?]+)',
+        r'https?://(?:www\.)?threads\.(?:net|com)/post/([^/?]+)',
+    ]
+    
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            post_id = match.group(1)
+            # Instagram URL 형식으로 변환
+            return f"https://www.instagram.com/p/{post_id}/"
+    
+    return url
+
 def normalize_threads_url(url):
     """Threads URL을 정규화합니다."""
     import re
@@ -24,6 +44,9 @@ def normalize_threads_url(url):
         r'https?://(?:www\.)?threads\.net/@[^/]+/post/[^/]+',
         r'https?://(?:www\.)?threads\.net/t/[^/]+',
         r'https?://(?:www\.)?threads\.net/post/[^/]+',
+        r'https?://(?:www\.)?threads\.com/@[^/]+/post/[^/]+',
+        r'https?://(?:www\.)?threads\.com/t/[^/]+',
+        r'https?://(?:www\.)?threads\.com/post/[^/]+',
     ]
     
     for pattern in patterns:
@@ -108,7 +131,7 @@ def detect_platform(url):
         return 'TikTok', 'fab fa-tiktok', '#000000'
     elif 'instagram.com' in url_lower or 'instagr.am' in url_lower:
         return 'Instagram', 'fab fa-instagram', '#E4405F'
-    elif 'threads.net' in url_lower:
+    elif 'threads.net' in url_lower or 'threads.com' in url_lower:
         return 'Threads', 'fas fa-thread', '#000000'
     elif 'reddit.com' in url_lower or 'redd.it' in url_lower:
         # Reddit URL 정규화
@@ -608,7 +631,7 @@ HTML_FORM = '''
           <i class="fas fa-info-circle"></i>
           <strong>Threads 팁:</strong> Threads 비디오와 포스트를 지원합니다. Instagram 기반이므로 로그인이 필요할 수 있습니다.
           <br><small style="color: #343a40;">💡 Threads는 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
-          <br><small style="color: #343a40;">📝 예시: https://threads.net/@username/post/1234567890</small>
+          <br><small style="color: #343a40;">📝 예시: https://threads.com/@username/post/1234567890</small>
         </div>
         <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; font-size: 0.9em; color: #0c5460;">
           <i class="fas fa-info-circle"></i>
@@ -671,7 +694,7 @@ HTML_FORM = '''
             platform = 'Instagram';
             icon = 'fab fa-instagram';
             color = '#E4405F';
-          } else if (urlLower.includes('threads.net')) {
+          } else if (urlLower.includes('threads.net') || urlLower.includes('threads.com')) {
             platform = 'Threads';
             icon = 'fas fa-thread';
             color = '#000000';
@@ -740,11 +763,17 @@ def download():
         url = normalize_facebook_url(url)
         logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
     
-    # Threads URL 정규화
+    # Threads URL 정규화 및 Instagram URL로 변환
     if platform == 'Threads':
         original_url = url
         url = normalize_threads_url(url)
-        logger.info(f"Threads URL 정규화: {original_url} -> {url}")
+        instagram_url = convert_threads_to_instagram_url(url)
+        if instagram_url != url:
+            logger.info(f"Threads URL을 Instagram URL로 변환: {original_url} -> {instagram_url}")
+            url = instagram_url
+            platform = 'Instagram'  # Instagram으로 플랫폼 변경
+        else:
+            logger.info(f"Threads URL 정규화: {original_url} -> {url}")
     
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
