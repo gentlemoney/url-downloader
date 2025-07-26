@@ -3,6 +3,7 @@ import yt_dlp
 import os
 import uuid
 import logging
+import re
 
 app = Flask(__name__)
 
@@ -14,13 +15,67 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def detect_platform(url):
+    """URL에서 플랫폼을 감지합니다."""
+    url_lower = url.lower()
+    
+    if 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+        return 'YouTube', 'fab fa-youtube', '#FF0000'
+    elif 'tiktok.com' in url_lower:
+        return 'TikTok', 'fab fa-tiktok', '#000000'
+    elif 'instagram.com' in url_lower:
+        return 'Instagram', 'fab fa-instagram', '#E4405F'
+    elif 'reddit.com' in url_lower:
+        return 'Reddit', 'fab fa-reddit', '#FF4500'
+    elif 'twitter.com' in url_lower or 'x.com' in url_lower:
+        return 'Twitter/X', 'fab fa-twitter', '#1DA1F2'
+    elif 'facebook.com' in url_lower:
+        return 'Facebook', 'fab fa-facebook', '#1877F2'
+    else:
+        return 'Unknown', 'fas fa-video', '#666666'
+
+def get_platform_specific_options(platform):
+    """플랫폼별 최적화된 다운로드 옵션을 반환합니다."""
+    base_options = {
+        'quiet': False,
+        'no_warnings': False,
+        'extract_flat': False,
+        'ignoreerrors': False,
+        'nocheckcertificate': True,
+        'extractor_retries': 3,
+    }
+    
+    if platform == 'TikTok':
+        base_options.update({
+            'format': 'best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),  # TikTok은 쿠키가 필요할 수 있음
+        })
+    elif platform == 'Instagram':
+        base_options.update({
+            'format': 'best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+        })
+    elif platform == 'Reddit':
+        base_options.update({
+            'format': 'best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+        })
+    else:  # YouTube 및 기타
+        base_options.update({
+            'format': 'best[ext=mp4]/best',
+            'merge_output_format': 'mp4',
+        })
+    
+    return base_options
+
 HTML_FORM = '''
 <!doctype html>
 <html lang="ko">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube 다운로드 - gptkimisa.com</title>
+    <title>소셜 미디어 다운로드 - gptkimisa.com</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
       * {
@@ -44,7 +99,7 @@ HTML_FORM = '''
         border-radius: 20px;
         box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         padding: 40px;
-        max-width: 600px;
+        max-width: 700px;
         width: 100%;
         text-align: center;
       }
@@ -57,7 +112,7 @@ HTML_FORM = '''
       
       h1 {
         color: #333;
-        margin-bottom: 30px;
+        margin-bottom: 10px;
         font-size: 2em;
         font-weight: 300;
       }
@@ -66,6 +121,23 @@ HTML_FORM = '''
         color: #666;
         margin-bottom: 30px;
         font-size: 1.1em;
+      }
+      
+      .platform-info {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        display: none;
+      }
+      
+      .platform-info.show {
+        display: block;
+      }
+      
+      .platform-icon {
+        font-size: 1.5em;
+        margin-right: 10px;
       }
       
       .form-group {
@@ -184,6 +256,30 @@ HTML_FORM = '''
         font-size: 0.9em;
       }
       
+      .supported-platforms {
+        margin-top: 20px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+      }
+      
+      .platform-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+      }
+      
+      .platform-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px;
+        border-radius: 5px;
+        background: white;
+        font-size: 0.9em;
+      }
+      
       .loading {
         display: none;
         margin-top: 20px;
@@ -223,15 +319,20 @@ HTML_FORM = '''
   <body>
     <div class="container">
       <div class="logo">
-        <i class="fab fa-youtube"></i>
+        <i class="fas fa-download"></i>
       </div>
-      <h1>YouTube 영상 다운로드</h1>
-      <p class="subtitle">간편하고 빠른 유튜브 영상 다운로드 서비스</p>
+      <h1>소셜 미디어 다운로드</h1>
+      <p class="subtitle">YouTube, TikTok, Instagram 등 다양한 플랫폼의 영상을 다운로드하세요</p>
+      
+      <div class="platform-info" id="platformInfo">
+        <i class="platform-icon" id="platformIcon"></i>
+        <span id="platformName">플랫폼을 감지했습니다</span>
+      </div>
       
       <form method="post" action="/download" id="downloadForm">
         <div class="form-group">
           <div class="input-group">
-            <input type="text" name="url" placeholder="유튜브 링크를 입력하세요" required>
+            <input type="text" name="url" placeholder="영상 링크를 입력하세요 (YouTube, TikTok, Instagram 등)" required id="urlInput">
             <button type="submit" id="downloadBtn">
               <i class="fas fa-download"></i>
               다운로드
@@ -264,6 +365,36 @@ HTML_FORM = '''
         </div>
       {% endif %}
       
+      <div class="supported-platforms">
+        <h3>지원하는 플랫폼</h3>
+        <div class="platform-grid">
+          <div class="platform-item">
+            <i class="fab fa-youtube" style="color: #FF0000;"></i>
+            <span>YouTube</span>
+          </div>
+          <div class="platform-item">
+            <i class="fab fa-tiktok" style="color: #000000;"></i>
+            <span>TikTok</span>
+          </div>
+          <div class="platform-item">
+            <i class="fab fa-instagram" style="color: #E4405F;"></i>
+            <span>Instagram</span>
+          </div>
+          <div class="platform-item">
+            <i class="fab fa-reddit" style="color: #FF4500;"></i>
+            <span>Reddit</span>
+          </div>
+          <div class="platform-item">
+            <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
+            <span>Twitter/X</span>
+          </div>
+          <div class="platform-item">
+            <i class="fab fa-facebook" style="color: #1877F2;"></i>
+            <span>Facebook</span>
+          </div>
+        </div>
+      </div>
+      
       <div class="features">
         <div class="feature">
           <i class="fas fa-bolt"></i>
@@ -284,6 +415,50 @@ HTML_FORM = '''
     </div>
     
     <script>
+      document.getElementById('urlInput').addEventListener('input', function() {
+        const url = this.value;
+        if (url) {
+          // URL을 서버로 보내서 플랫폼 감지 (간단한 클라이언트 사이드 감지)
+          const urlLower = url.toLowerCase();
+          let platform = 'Unknown';
+          let icon = 'fas fa-video';
+          let color = '#666666';
+          
+          if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) {
+            platform = 'YouTube';
+            icon = 'fab fa-youtube';
+            color = '#FF0000';
+          } else if (urlLower.includes('tiktok.com')) {
+            platform = 'TikTok';
+            icon = 'fab fa-tiktok';
+            color = '#000000';
+          } else if (urlLower.includes('instagram.com')) {
+            platform = 'Instagram';
+            icon = 'fab fa-instagram';
+            color = '#E4405F';
+          } else if (urlLower.includes('reddit.com')) {
+            platform = 'Reddit';
+            icon = 'fab fa-reddit';
+            color = '#FF4500';
+          } else if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) {
+            platform = 'Twitter/X';
+            icon = 'fab fa-twitter';
+            color = '#1DA1F2';
+          } else if (urlLower.includes('facebook.com')) {
+            platform = 'Facebook';
+            icon = 'fab fa-facebook';
+            color = '#1877F2';
+          }
+          
+          document.getElementById('platformName').textContent = platform;
+          document.getElementById('platformIcon').className = icon;
+          document.getElementById('platformIcon').style.color = color;
+          document.getElementById('platformInfo').classList.add('show');
+        } else {
+          document.getElementById('platformInfo').classList.remove('show');
+        }
+      });
+      
       document.getElementById('downloadForm').addEventListener('submit', function() {
         document.getElementById('loading').style.display = 'block';
         document.getElementById('downloadBtn').disabled = true;
@@ -304,23 +479,19 @@ def download():
     if not url:
         return render_template_string(HTML_FORM, error="URL을 입력하세요.")
     
+    # 플랫폼 감지
+    platform, icon, color = detect_platform(url)
+    logger.info(f"감지된 플랫폼: {platform}")
+    
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
     
-    ydl_opts = {
-        'outtmpl': outtmpl,
-        'format': 'best[ext=mp4]/best',
-        'merge_output_format': 'mp4',
-        'quiet': False,
-        'no_warnings': False,
-        'extract_flat': False,
-        'ignoreerrors': False,
-        'nocheckcertificate': True,
-        'extractor_retries': 3,
-    }
+    # 플랫폼별 최적화된 옵션 가져오기
+    ydl_opts = get_platform_specific_options(platform)
+    ydl_opts['outtmpl'] = outtmpl
     
     try:
-        logger.info(f"다운로드 시작: {url}")
+        logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
             info = ydl.extract_info(url, download=False)
