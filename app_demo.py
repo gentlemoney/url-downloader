@@ -1,24 +1,16 @@
 from flask import Flask, render_template_string, request, jsonify
-from flask_cors import CORS
 import os
 import requests
 import json
 import re
 from datetime import datetime
-import pandas as pd
-import numpy as np
-from dotenv import load_dotenv
-import openai
 import sys
+from dotenv import load_dotenv
 
 # 환경변수 로드
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
-
-# OpenAI API 설정
-openai.api_key = os.getenv('OPENAI_API_KEY')
 
 class ThreadsAnalyzer:
     def __init__(self):
@@ -92,71 +84,47 @@ class ThreadsAnalyzer:
             ]
             
         return sorted(high_engagement, key=lambda x: x['engagement_score'], reverse=True)
-    
-    def extract_content_patterns(self, threads):
-        """콘텐츠 패턴 분석"""
-        patterns = {
-            'common_structures': [],
-            'popular_formats': [],
-            'engagement_factors': []
-        }
-        
-        for thread in threads:
-            content = thread['content']
-            
-            # 구조 패턴 분석
-            if '1.' in content or '•' in content or '✨' in content:
-                patterns['common_structures'].append('리스트 형식')
-            if '❌' in content and '✅' in content:
-                patterns['common_structures'].append('비교 형식')
-            if '🍝' in content or '💪' in content or '📱' in content:
-                patterns['popular_formats'].append('이모지 활용')
-            
-        return patterns
 
 class ContentTransformer:
     def __init__(self):
-        self.client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+        pass
     
     def transform_content(self, original_content, user_topic, content_patterns):
         """
-        원본 콘텐츠를 사용자 주제에 맞게 변환
+        원본 콘텐츠를 사용자 주제에 맞게 변환 (데모 버전 - 템플릿 기반)
         """
-        try:
-            prompt = f"""
-            다음은 높은 참여도를 받은 스레드 콘텐츠입니다:
+        # 원본 콘텐츠의 패턴 분석
+        if "💪" in original_content and "목표" in original_content:
+            # 운동 목표 패턴
+            transformed = f"{user_topic} 마스터하기 위한 5가지 효과적인 방법 🎯\n1. 명확한 학습 목표 설정\n2. 단계별 점진적 학습\n3. 스터디 그룹 참여\n4. 진도 체크 및 기록\n5. 성취에 대한 자기 보상"
             
-            원본 콘텐츠: {original_content}
+        elif "🍋" in original_content and "레시피" in original_content:
+            # 레시피 패턴
+            transformed = f"{user_topic} 활용 간단 레시피 모음 ✨\n✨ {user_topic} + 기본 재료\n✨ {user_topic} + 창의적 조합\n✨ {user_topic} + 실용적 활용\n매일 꾸준히 하면 실력이 늘어요!"
             
-            이 콘텐츠의 구조와 스타일을 유지하면서, "{user_topic}" 주제로 새로운 콘텐츠를 만들어주세요.
+        elif "🏠" in original_content and "생산성" in original_content:
+            # 생산성 팁 패턴
+            transformed = f"{user_topic} 효율성 높이는 꿀팁 📚\n• 전용 {user_topic} 공간 조성\n• 집중 시간 블록 설정\n• 적절한 환경 조성\n• 규칙적인 휴식\n• 체계적인 일정 관리"
             
-            요구사항:
-            1. 원본의 형식과 구조를 최대한 유지
-            2. 이모지 사용 패턴 유지
-            3. 리스트나 단계별 구성 유지
-            4. 실용적이고 actionable한 내용
-            5. 스레드에 적합한 길이 (너무 길지 않게)
+        elif "🍝" in original_content and "초보도" in original_content:
+            # 초보자 가이드 패턴
+            transformed = f"{user_topic} 초보자도 쉽게! 기본 가이드 📖\n준비물: 기본서, 노트, 펜, 시간, 열정\n1. 기초 개념 학습 (30분)\n2. 실습 예제 따라하기\n3. 복습 및 정리\n4. 응용 문제 도전!"
             
-            새로운 콘텐츠:
-            """
+        elif "📱" in original_content and "수명" in original_content:
+            # 유지/관리 팁 패턴
+            transformed = f"{user_topic} 장기간 유지하는 방법 🔄\n❌ 과도한 집중 금지\n✅ 꾸준한 반복 학습\n❌ 완벽주의 금지\n✅ 점진적 발전\n❌ 외부 압박 금지"
             
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,
-                temperature=0.7
-            )
+        else:
+            # 기본 템플릿
+            transformed = f"{user_topic}에 관한 유용한 팁! 🌟\n\n이 콘텐츠는 {user_topic} 분야에 맞게 변환되었습니다.\n실제 서비스에서는 AI가 더욱 정교하게 변환해드립니다.\n\n✅ 구조 유지\n✅ 스타일 보존\n✅ 주제 맞춤"
             
-            return response.choices[0].message.content.strip()
-            
-        except Exception as e:
-            return f"콘텐츠 변환 중 오류가 발생했습니다: {str(e)}"
+        return transformed
 
 # 전역 인스턴스
 analyzer = ThreadsAnalyzer()
 transformer = ContentTransformer()
 
-# HTML 템플릿
+# HTML 템플릿 (동일)
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -197,6 +165,14 @@ HTML_TEMPLATE = """
         .header p {
             font-size: 1.1rem;
             opacity: 0.9;
+        }
+        .demo-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin-top: 15px;
+            display: inline-block;
+            font-size: 0.9rem;
         }
         .main-content {
             padding: 40px;
@@ -310,6 +286,7 @@ HTML_TEMPLATE = """
         <div class="header">
             <h1>🧵 스레드 콘텐츠 매핑</h1>
             <p>높은 참여도의 콘텐츠를 분석하고 당신의 주제에 맞게 변환해드립니다</p>
+            <div class="demo-badge">🚀 데모 모드 - 템플릿 기반 변환</div>
         </div>
         
         <div class="main-content">
@@ -343,6 +320,8 @@ HTML_TEMPLATE = """
     </div>
     
     <script>
+        window.currentThreads = [];
+        
         document.getElementById('analysisForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -373,6 +352,7 @@ HTML_TEMPLATE = """
                     throw new Error(data.error);
                 }
                 
+                window.currentThreads = data.threads;
                 displayResults(data.threads, userTopic);
                 
             } catch (error) {
@@ -490,7 +470,7 @@ def transform_content():
         if not original_content or not user_topic:
             return jsonify({'error': '원본 콘텐츠와 주제가 필요합니다.'}), 400
         
-        # 콘텐츠 변환
+        # 콘텐츠 변환 (데모 모드)
         transformed = transformer.transform_content(
             original_content, 
             user_topic, 
@@ -511,9 +491,9 @@ def test():
     """시스템 테스트용 엔드포인트"""
     test_results = {
         'timestamp': datetime.now().isoformat(),
+        'mode': 'demo',
         'environment': {
-            'openai_key_configured': bool(os.getenv('OPENAI_API_KEY')),
-            'flask_version': Flask.__version__,
+            'flask_version': '3.1.1',
             'python_version': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
         },
         'sample_analysis': {
@@ -529,8 +509,8 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     host = '0.0.0.0'
     
-    print("🧵 스레드 콘텐츠 매핑 서비스가 시작됩니다!")
+    print("🧵 스레드 콘텐츠 매핑 서비스가 시작됩니다! (데모 모드)")
     print(f"📍 주소: http://{host}:{port}")
-    print(f"🔑 OpenAI API: {'설정됨' if os.getenv('OPENAI_API_KEY') else '설정 필요'}")
+    print("🚀 데모 모드: 템플릿 기반 콘텐츠 변환")
     
-    app.run(host=host, port=port, debug=True) 
+    app.run(host=host, port=port, debug=True)

@@ -1,140 +1,160 @@
-# 🎥 소셜 미디어 비디오 다운로더
+# 🧵 스레드 콘텐츠 매핑 서비스
 
-YouTube, TikTok, Instagram, Reddit, Twitter/X에서 비디오를 쉽게 다운로드할 수 있는 웹 서비스입니다.
+높은 참여도를 가진 스레드 콘텐츠를 분석하고, 사용자의 주제에 맞게 변환해주는 AI 기반 콘텐츠 매핑 서비스입니다.
 
 ## ✨ 주요 기능
 
-- **다중 플랫폼 지원**: YouTube, TikTok, Instagram, Reddit, Twitter/X
-- **빠른 다운로드**: 고속 서버로 빠른 다운로드
-- **안전한 서비스**: 개인정보 보호 및 안전한 다운로드
-- **모바일 친화적**: 모든 기기에서 편리하게 사용
-- **실시간 플랫폼 감지**: URL 입력 시 자동으로 플랫폼 감지
+- **높은 참여도 콘텐츠 분석**: 저장 수와 리포스트 수가 일정량 이상인 콘텐츠 자동 탐지
+- **콘텐츠 패턴 분석**: 인기 콘텐츠의 구조와 형식 분석
+- **AI 기반 콘텐츠 변환**: OpenAI GPT를 활용한 주제별 콘텐츠 변환
+- **실시간 분석**: 카테고리별 트렌딩 콘텐츠 실시간 분석
+- **사용자 친화적 UI**: 직관적이고 모던한 웹 인터페이스
 
-## 🚀 지원 플랫폼
+## 🎯 서비스 핵심 로직
 
-| 플랫폼 | 지원 콘텐츠 | 상태 |
-|--------|-------------|------|
-| YouTube | 비디오, 쇼츠 | ✅ |
-| TikTok | 비디오 | ✅ |
-| Instagram | Reels, Stories, Posts | ✅ |
-| Reddit | 비디오, GIFs | ✅ |
-| Twitter/X | 비디오 | ✅ |
+### 1. 콘텐츠 분석 기준
+- **최소 참여도**: 저장 수 + 리포스트 수 ≥ 10개
+- **참여도 점수**: 저장 수 + 리포스트 수 + 좋아요 수
+- **카테고리별 분류**: 피트니스, 건강, 생산성, 요리, 기술 등
 
-## 🛠️ 기술 스택
+### 2. 콘텐츠 변환 프로세스
+1. 원본 콘텐츠의 구조 분석
+2. 이모지 사용 패턴 추출
+3. 리스트/단계별 구성 파악
+4. 사용자 주제에 맞는 새로운 콘텐츠 생성
+5. 원본 스타일 유지하며 변환
 
-- **Backend**: Python, Flask
-- **Video Download**: yt-dlp
-- **Frontend**: HTML, CSS, JavaScript
-- **Deployment**: Render
+### 3. 지원하는 콘텐츠 형식
+- ✅ 리스트 형식 (번호/불릿 포인트)
+- ✅ 비교 형식 (❌/✅ 패턴)
+- ✅ 단계별 가이드
+- ✅ 팁과 꿀팁 형식
+- ✅ 레시피/방법론 형식
 
-## 📦 설치 및 실행
+## 🚀 설치 및 실행
 
-### 로컬 개발 환경
-
-1. **저장소 클론**
+### 1. 저장소 클론
 ```bash
-git clone https://github.com/yourusername/social-media-downloader.git
-cd social-media-downloader
+git clone <repository-url>
+cd threads-content-mapper
 ```
 
-2. **가상환경 생성 및 활성화**
+### 2. 가상환경 설정
 ```bash
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 ```
 
-3. **의존성 설치**
+### 3. 의존성 설치
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **서버 실행**
+### 4. 환경 변수 설정
+`.env` 파일에서 OpenAI API 키를 설정하세요:
+```bash
+OPENAI_API_KEY=your_actual_openai_api_key_here
+```
+
+### 5. 서버 실행
 ```bash
 python app.py
 ```
 
-5. **브라우저에서 접속**
+### 6. 브라우저에서 접속
 ```
-http://localhost:3000
-```
-
-### Render 배포
-
-1. **GitHub에 코드 푸시**
-```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
+http://localhost:5000
 ```
 
-2. **Render에서 새 서비스 생성**
-   - Render 대시보드에서 "New +" 클릭
-   - "Web Service" 선택
-   - GitHub 저장소 연결
-   - 다음 설정으로 구성:
-     - **Name**: social-media-downloader
-     - **Environment**: Python 3
-     - **Build Command**: `pip install -r requirements.txt`
-     - **Start Command**: `python app.py`
-     - **Port**: 3000
+## 🛠️ 기술 스택
 
-## 📁 프로젝트 구조
+- **Backend**: Python, Flask
+- **AI**: OpenAI GPT-3.5-turbo
+- **Frontend**: HTML, CSS, JavaScript
+- **데이터 처리**: Pandas, NumPy
+- **HTTP 클라이언트**: Requests
+- **환경 관리**: python-dotenv
 
+## 📊 샘플 데이터
+
+서비스에는 다음과 같은 시뮬레이션된 인기 콘텐츠가 포함되어 있습니다:
+
+### 피트니스 카테고리
 ```
-social-media-downloader/
-├── app.py                 # 메인 Flask 애플리케이션
-├── requirements.txt       # Python 의존성
-├── README.md             # 프로젝트 문서
-├── downloads/            # 다운로드된 파일 저장소
-└── .gitignore           # Git 무시 파일
+새해 운동 목표를 세우는 5가지 효과적인 방법 💪
+1. 구체적인 목표 설정
+2. 점진적 증가
+3. 운동 파트너 찾기
+4. 진행상황 기록
+5. 보상 시스템 만들기
+```
+**참여도**: 저장 45개, 리포스트 28개, 좋아요 156개
+
+### 건강 카테고리
+```
+집에서 만드는 간단한 디톡스 워터 레시피 🍋
+✨ 레몬 + 오이 + 민트
+✨ 자몽 + 로즈마리
+✨ 베리 + 라임
+하루 2L 마시면 피부도 좋아져요!
+```
+**참여도**: 저장 67개, 리포스트 34개, 좋아요 203개
+
+## 💡 사용 방법
+
+### 1. 주제 입력
+원하는 주제를 입력하세요 (예: 독서, 투자, 언어학습 등)
+
+### 2. 카테고리 선택 (선택사항)
+분석할 특정 카테고리를 선택하거나 전체 카테고리에서 분석
+
+### 3. 콘텐츠 분석
+시스템이 높은 참여도의 콘텐츠를 자동으로 분석
+
+### 4. 콘텐츠 변환
+각 원본 콘텐츠를 클릭하여 사용자 주제로 변환
+
+### 5. 결과 활용
+변환된 콘텐츠를 스레드에 바로 사용
+
+## 🔧 API 엔드포인트
+
+### POST /analyze
+콘텐츠 분석 요청
+```json
+{
+  "user_topic": "독서",
+  "topic_filter": "productivity"
+}
 ```
 
-## 🔧 환경 변수
-
-| 변수명 | 설명 | 기본값 |
-|--------|------|--------|
-| `PORT` | 서버 포트 | 3000 |
-| `HOST` | 서버 호스트 | 0.0.0.0 |
-
-## 🚀 사용 방법
-
-1. **브라우저에서 서비스 접속**
-2. **지원되는 플랫폼의 비디오 URL 입력**
-3. **"다운로드" 버튼 클릭**
-4. **다운로드 완료 후 파일 다운로드**
-
-## 📝 사용 예시
-
-### YouTube
-```
-https://www.youtube.com/watch?v=dQw4w9WgXcQ
+### POST /transform
+콘텐츠 변환 요청
+```json
+{
+  "original_content": "원본 콘텐츠",
+  "user_topic": "사용자 주제"
+}
 ```
 
-### TikTok
-```
-https://www.tiktok.com/@username/video/1234567890
-```
+### GET /test
+시스템 상태 확인
 
-### Instagram
-```
-https://www.instagram.com/p/ABC123/
-```
+## 📈 향후 개발 계획
 
-### Reddit
-```
-https://www.reddit.com/r/videos/comments/123456/amazing_video/
-```
+- [ ] 실제 Threads API 연동
+- [ ] 더 다양한 콘텐츠 카테고리 추가
+- [ ] 콘텐츠 성과 예측 기능
+- [ ] 사용자 히스토리 저장
+- [ ] 배치 변환 기능
+- [ ] 다국어 지원
 
-### Twitter/X
-```
-https://twitter.com/username/status/1234567890
-```
+## ⚠️ 주의사항
 
-## 🔒 보안 및 개인정보
-
-- 사용자 입력 URL은 서버에 저장되지 않습니다
-- 다운로드된 파일은 임시로만 저장됩니다
-- 개인정보 수집하지 않습니다
+- OpenAI API 키가 필요합니다
+- 현재는 시뮬레이션된 데이터를 사용합니다
+- 실제 서비스에서는 Threads API 연동이 필요합니다
+- API 사용량에 따른 비용이 발생할 수 있습니다
 
 ## 🤝 기여하기
 
@@ -146,11 +166,7 @@ https://twitter.com/username/status/1234567890
 
 ## 📄 라이선스
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다. 자세한 내용은 `LICENSE` 파일을 참조하세요.
-
-## ⚠️ 면책 조항
-
-이 서비스는 교육 및 개인 사용 목적으로만 제공됩니다. 저작권이 있는 콘텐츠의 다운로드는 해당 플랫폼의 이용약관을 준수해야 합니다. 사용자는 자신의 행동에 대한 책임을 져야 합니다.
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
 
 ## 📞 문의
 
@@ -158,7 +174,4 @@ https://twitter.com/username/status/1234567890
 
 ---
 
-⭐ 이 프로젝트가 도움이 되었다면 스타를 눌러주세요! # Force redeploy Sat Jul 26 16:01:04 KST 2025
-# Force redeploy Sat Jul 26 17:09:06 KST 2025
-# Force redeploy Sat Jul 26 17:16:54 KST 2025 - Fix download flow
-# Force redeploy Sat Jul 26 17:45:16 KST 2025 - Fix yt-dlp version
+⭐ 이 프로젝트가 도움이 되었다면 스타를 눌러주세요!

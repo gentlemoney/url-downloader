@@ -1,35 +1,14 @@
 from flask import Flask, render_template_string, request, jsonify
-from flask_cors import CORS
 import os
-import requests
-import json
-import re
 from datetime import datetime
-import pandas as pd
-import numpy as np
-from dotenv import load_dotenv
-import openai
-import sys
-
-# 환경변수 로드
-load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
-
-# OpenAI API 설정
-openai.api_key = os.getenv('OPENAI_API_KEY')
 
 class ThreadsAnalyzer:
     def __init__(self):
-        self.min_engagement = 10  # 최소 참여도 임계값
+        self.min_engagement = 10
         
     def analyze_trending_content(self, topic=None):
-        """
-        트렌딩 콘텐츠 분석 (실제로는 Threads API가 필요하지만 
-        데모를 위해 시뮬레이션된 데이터 사용)
-        """
-        # 시뮬레이션된 인기 콘텐츠 데이터
         sample_threads = [
             {
                 "id": "thread_1",
@@ -57,34 +36,14 @@ class ThreadsAnalyzer:
                 "likes": 267,
                 "topic": "productivity",
                 "engagement_score": 408
-            },
-            {
-                "id": "thread_4",
-                "content": "요리 초보도 쉽게! 10분 파스타 레시피 🍝\n재료: 파스타면, 올리브오일, 마늘, 방울토마토, 바질\n1. 면 삶기 (8분)\n2. 마늘+토마토 볶기\n3. 파스타 넣고 섞기\n4. 바질 올리고 완성!",
-                "saves": 124,
-                "reposts": 78,
-                "likes": 445,
-                "topic": "cooking",
-                "engagement_score": 647
-            },
-            {
-                "id": "thread_5",
-                "content": "스마트폰 배터리 수명 늘리는 방법 📱\n❌ 0%까지 방전 금지\n✅ 20-80% 사이 유지\n❌ 밤새 충전 금지\n✅ 발열 방지\n❌ 저품질 충전기 사용 금지",
-                "saves": 156,
-                "reposts": 92,
-                "likes": 378,
-                "topic": "tech",
-                "engagement_score": 626
             }
         ]
         
-        # 참여도가 높은 콘텐츠만 필터링
         high_engagement = [
             thread for thread in sample_threads 
             if (thread['saves'] + thread['reposts']) >= self.min_engagement
         ]
         
-        # 주제별 필터링
         if topic:
             high_engagement = [
                 thread for thread in high_engagement 
@@ -92,71 +51,23 @@ class ThreadsAnalyzer:
             ]
             
         return sorted(high_engagement, key=lambda x: x['engagement_score'], reverse=True)
-    
-    def extract_content_patterns(self, threads):
-        """콘텐츠 패턴 분석"""
-        patterns = {
-            'common_structures': [],
-            'popular_formats': [],
-            'engagement_factors': []
-        }
-        
-        for thread in threads:
-            content = thread['content']
-            
-            # 구조 패턴 분석
-            if '1.' in content or '•' in content or '✨' in content:
-                patterns['common_structures'].append('리스트 형식')
-            if '❌' in content and '✅' in content:
-                patterns['common_structures'].append('비교 형식')
-            if '🍝' in content or '💪' in content or '📱' in content:
-                patterns['popular_formats'].append('이모지 활용')
-            
-        return patterns
 
 class ContentTransformer:
-    def __init__(self):
-        self.client = openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    
     def transform_content(self, original_content, user_topic, content_patterns):
-        """
-        원본 콘텐츠를 사용자 주제에 맞게 변환
-        """
-        try:
-            prompt = f"""
-            다음은 높은 참여도를 받은 스레드 콘텐츠입니다:
+        if "💪" in original_content and "목표" in original_content:
+            transformed = f"{user_topic} 마스터하기 위한 5가지 효과적인 방법 🎯\n1. 명확한 학습 목표 설정\n2. 단계별 점진적 학습\n3. 스터디 그룹 참여\n4. 진도 체크 및 기록\n5. 성취에 대한 자기 보상"
+        elif "🍋" in original_content and "레시피" in original_content:
+            transformed = f"{user_topic} 활용 간단 가이드 ✨\n✨ {user_topic} + 기본 원리\n✨ {user_topic} + 실전 활용\n✨ {user_topic} + 고급 기법\n매일 꾸준히 하면 실력이 늘어요!"
+        elif "🏠" in original_content and "생산성" in original_content:
+            transformed = f"{user_topic} 효율성 높이는 꿀팁 📚\n• 전용 {user_topic} 공간 조성\n• 집중 시간 블록 설정\n• 적절한 환경 조성\n• 규칙적인 휴식\n• 체계적인 일정 관리"
+        else:
+            transformed = f"{user_topic}에 관한 유용한 팁! 🌟\n\n이 콘텐츠는 {user_topic} 분야에 맞게 변환되었습니다.\n실제 서비스에서는 AI가 더욱 정교하게 변환해드립니다.\n\n✅ 구조 유지\n✅ 스타일 보존\n✅ 주제 맞춤"
             
-            원본 콘텐츠: {original_content}
-            
-            이 콘텐츠의 구조와 스타일을 유지하면서, "{user_topic}" 주제로 새로운 콘텐츠를 만들어주세요.
-            
-            요구사항:
-            1. 원본의 형식과 구조를 최대한 유지
-            2. 이모지 사용 패턴 유지
-            3. 리스트나 단계별 구성 유지
-            4. 실용적이고 actionable한 내용
-            5. 스레드에 적합한 길이 (너무 길지 않게)
-            
-            새로운 콘텐츠:
-            """
-            
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=500,
-                temperature=0.7
-            )
-            
-            return response.choices[0].message.content.strip()
-            
-        except Exception as e:
-            return f"콘텐츠 변환 중 오류가 발생했습니다: {str(e)}"
+        return transformed
 
-# 전역 인스턴스
 analyzer = ThreadsAnalyzer()
 transformer = ContentTransformer()
 
-# HTML 템플릿
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
@@ -165,11 +76,7 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>스레드 콘텐츠 매핑 서비스</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -190,26 +97,24 @@ HTML_TEMPLATE = """
             padding: 40px;
             text-align: center;
         }
-        .header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+        .header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        .header p { font-size: 1.1rem; opacity: 0.9; }
+        .demo-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin-top: 15px;
+            display: inline-block;
+            font-size: 0.9rem;
         }
-        .header p {
-            font-size: 1.1rem;
-            opacity: 0.9;
-        }
-        .main-content {
-            padding: 40px;
-        }
+        .main-content { padding: 40px; }
         .input-section {
             background: #f8f9fa;
             padding: 30px;
             border-radius: 15px;
             margin-bottom: 30px;
         }
-        .form-group {
-            margin-bottom: 20px;
-        }
+        .form-group { margin-bottom: 20px; }
         .form-group label {
             display: block;
             margin-bottom: 8px;
@@ -224,10 +129,7 @@ HTML_TEMPLATE = """
             font-size: 1rem;
             transition: border-color 0.3s;
         }
-        .form-control:focus {
-            outline: none;
-            border-color: #667eea;
-        }
+        .form-control:focus { outline: none; border-color: #667eea; }
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -238,12 +140,8 @@ HTML_TEMPLATE = """
             cursor: pointer;
             transition: transform 0.2s;
         }
-        .btn:hover {
-            transform: translateY(-2px);
-        }
-        .results-section {
-            margin-top: 30px;
-        }
+        .btn:hover { transform: translateY(-2px); }
+        .results-section { margin-top: 30px; }
         .thread-card {
             background: white;
             border: 1px solid #e9ecef;
@@ -253,9 +151,7 @@ HTML_TEMPLATE = """
             box-shadow: 0 5px 15px rgba(0,0,0,0.08);
             transition: transform 0.2s;
         }
-        .thread-card:hover {
-            transform: translateY(-2px);
-        }
+        .thread-card:hover { transform: translateY(-2px); }
         .thread-stats {
             display: flex;
             gap: 15px;
@@ -263,11 +159,7 @@ HTML_TEMPLATE = """
             font-size: 0.9rem;
             color: #666;
         }
-        .stat {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        .stat { display: flex; align-items: center; gap: 5px; }
         .thread-content {
             background: #f8f9fa;
             padding: 15px;
@@ -280,11 +172,7 @@ HTML_TEMPLATE = """
             background: #e8f5e8;
             border-left-color: #28a745;
         }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
-        }
+        .loading { text-align: center; padding: 20px; color: #666; }
         .spinner {
             border: 3px solid #f3f3f3;
             border-radius: 50%;
@@ -310,6 +198,7 @@ HTML_TEMPLATE = """
         <div class="header">
             <h1>🧵 스레드 콘텐츠 매핑</h1>
             <p>높은 참여도의 콘텐츠를 분석하고 당신의 주제에 맞게 변환해드립니다</p>
+            <div class="demo-badge">🚀 데모 모드 - 템플릿 기반 변환</div>
         </div>
         
         <div class="main-content">
@@ -327,8 +216,6 @@ HTML_TEMPLATE = """
                             <option value="fitness">피트니스</option>
                             <option value="health">건강</option>
                             <option value="productivity">생산성</option>
-                            <option value="cooking">요리</option>
-                            <option value="tech">기술</option>
                         </select>
                     </div>
                     <button type="submit" class="btn">🔍 인기 콘텐츠 분석 시작</button>
@@ -343,6 +230,8 @@ HTML_TEMPLATE = """
     </div>
     
     <script>
+        window.currentThreads = [];
+        
         document.getElementById('analysisForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -351,16 +240,13 @@ HTML_TEMPLATE = """
             const resultsDiv = document.getElementById('results');
             const container = document.getElementById('threadsContainer');
             
-            // 결과 영역 표시
             resultsDiv.style.display = 'block';
             container.innerHTML = '<div class="loading"><div class="spinner"></div>인기 콘텐츠를 분석하고 있습니다...</div>';
             
             try {
                 const response = await fetch('/analyze', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         user_topic: userTopic,
                         topic_filter: topicFilter
@@ -373,13 +259,11 @@ HTML_TEMPLATE = """
                     throw new Error(data.error);
                 }
                 
+                window.currentThreads = data.threads;
                 displayResults(data.threads, userTopic);
                 
             } catch (error) {
-                container.innerHTML = `<div class="thread-card" style="border-color: #dc3545;">
-                    <h4 style="color: #dc3545;">❌ 오류 발생</h4>
-                    <p>${error.message}</p>
-                </div>`;
+                container.innerHTML = '<div class="thread-card" style="border-color: #dc3545;"><h4 style="color: #dc3545;">❌ 오류 발생</h4><p>' + error.message + '</p></div>';
             }
         });
         
@@ -391,33 +275,30 @@ HTML_TEMPLATE = """
                 return;
             }
             
-            container.innerHTML = threads.map((thread, index) => `
-                <div class="thread-card">
-                    <div class="thread-stats">
-                        <div class="stat">💾 저장: ${thread.saves}</div>
-                        <div class="stat">🔄 리포스트: ${thread.reposts}</div>
-                        <div class="stat">❤️ 좋아요: ${thread.likes}</div>
-                        <div class="stat">📊 참여도: ${thread.engagement_score}</div>
-                    </div>
-                    
-                    <h4>원본 콘텐츠 (${thread.topic})</h4>
-                    <div class="thread-content">${thread.content}</div>
-                    
-                    <button class="btn transform-btn" onclick="transformContent(${index}, '${userTopic}')">
-                        🔄 "${userTopic}" 주제로 변환하기
-                    </button>
-                    
-                    <div id="transformed-${index}" style="display: none;">
-                        <h4 style="margin-top: 20px;">✨ 변환된 콘텐츠</h4>
-                        <div class="thread-content transformed-content" id="content-${index}"></div>
-                    </div>
-                </div>
-            `).join('');
+            container.innerHTML = threads.map((thread, index) => 
+                '<div class="thread-card">' +
+                    '<div class="thread-stats">' +
+                        '<div class="stat">💾 저장: ' + thread.saves + '</div>' +
+                        '<div class="stat">🔄 리포스트: ' + thread.reposts + '</div>' +
+                        '<div class="stat">❤️ 좋아요: ' + thread.likes + '</div>' +
+                        '<div class="stat">📊 참여도: ' + thread.engagement_score + '</div>' +
+                    '</div>' +
+                    '<h4>원본 콘텐츠 (' + thread.topic + ')</h4>' +
+                    '<div class="thread-content">' + thread.content + '</div>' +
+                    '<button class="btn transform-btn" onclick="transformContent(' + index + ', \'' + userTopic + '\')">' +
+                        '🔄 "' + userTopic + '" 주제로 변환하기' +
+                    '</button>' +
+                    '<div id="transformed-' + index + '" style="display: none;">' +
+                        '<h4 style="margin-top: 20px;">✨ 변환된 콘텐츠</h4>' +
+                        '<div class="thread-content transformed-content" id="content-' + index + '"></div>' +
+                    '</div>' +
+                '</div>'
+            ).join('');
         }
         
         async function transformContent(index, userTopic) {
-            const transformedDiv = document.getElementById(`transformed-${index}`);
-            const contentDiv = document.getElementById(`content-${index}`);
+            const transformedDiv = document.getElementById('transformed-' + index);
+            const contentDiv = document.getElementById('content-' + index);
             
             transformedDiv.style.display = 'block';
             contentDiv.innerHTML = '<div class="loading"><div class="spinner"></div>콘텐츠를 변환하고 있습니다...</div>';
@@ -428,9 +309,7 @@ HTML_TEMPLATE = """
                 
                 const response = await fetch('/transform', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         original_content: originalContent,
                         user_topic: userTopic
@@ -446,7 +325,7 @@ HTML_TEMPLATE = """
                 contentDiv.innerHTML = data.transformed_content;
                 
             } catch (error) {
-                contentDiv.innerHTML = `<div style="color: #dc3545;">❌ 변환 중 오류가 발생했습니다: ${error.message}</div>`;
+                contentDiv.innerHTML = '<div style="color: #dc3545;">❌ 변환 중 오류가 발생했습니다: ' + error.message + '</div>';
             }
         }
     </script>
@@ -468,7 +347,6 @@ def analyze_content():
         if not user_topic:
             return jsonify({'error': '주제를 입력해주세요.'}), 400
         
-        # 트렌딩 콘텐츠 분석
         trending_threads = analyzer.analyze_trending_content(topic_filter)
         
         return jsonify({
@@ -490,12 +368,7 @@ def transform_content():
         if not original_content or not user_topic:
             return jsonify({'error': '원본 콘텐츠와 주제가 필요합니다.'}), 400
         
-        # 콘텐츠 변환
-        transformed = transformer.transform_content(
-            original_content, 
-            user_topic, 
-            {}  # 패턴 정보
-        )
+        transformed = transformer.transform_content(original_content, user_topic, {})
         
         return jsonify({
             'transformed_content': transformed,
@@ -508,29 +381,17 @@ def transform_content():
 
 @app.route('/test')
 def test():
-    """시스템 테스트용 엔드포인트"""
-    test_results = {
+    return jsonify({
         'timestamp': datetime.now().isoformat(),
-        'environment': {
-            'openai_key_configured': bool(os.getenv('OPENAI_API_KEY')),
-            'flask_version': Flask.__version__,
-            'python_version': f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
-        },
-        'sample_analysis': {
-            'total_threads': len(analyzer.analyze_trending_content()),
-            'fitness_threads': len(analyzer.analyze_trending_content('fitness')),
-            'tech_threads': len(analyzer.analyze_trending_content('tech'))
-        }
-    }
-    
-    return jsonify(test_results)
+        'mode': 'demo',
+        'status': 'running',
+        'threads_count': len(analyzer.analyze_trending_content())
+    })
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    host = '0.0.0.0'
+    port = int(os.environ.get('PORT', 8080))
+    print(f"🧵 스레드 콘텐츠 매핑 서비스 시작! (포트: {port})")
+    print("🚀 데모 모드: 템플릿 기반 콘텐츠 변환")
+    print(f"📍 주소: http://localhost:{port}")
     
-    print("🧵 스레드 콘텐츠 매핑 서비스가 시작됩니다!")
-    print(f"📍 주소: http://{host}:{port}")
-    print(f"🔑 OpenAI API: {'설정됨' if os.getenv('OPENAI_API_KEY') else '설정 필요'}")
-    
-    app.run(host=host, port=port, debug=True) 
+    app.run(host='0.0.0.0', port=port, debug=True)
