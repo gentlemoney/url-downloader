@@ -13,9 +13,17 @@ from urllib.parse import urlparse, parse_qs
 app = Flask(__name__)
 
 # Render 환경 자동 감지
-if os.environ.get('RENDER') or 'onrender.com' in os.environ.get('HOSTNAME', ''):
-    os.environ['RENDER'] = 'true'
-    print("Render 환경 감지됨 - cookiesfrombrowser 비활성화")
+IS_SERVER_ENV = (
+    os.environ.get('RENDER') or 
+    'onrender.com' in os.environ.get('HOSTNAME', '') or
+    os.environ.get('PORT') or
+    'cursor' in os.environ.get('HOSTNAME', '').lower() or
+    os.path.exists('/.dockerenv')
+)
+
+if IS_SERVER_ENV:
+    os.environ['SERVER_ENV'] = 'true'
+    print("서버 환경 감지됨 - 특별 설정 적용")
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
@@ -383,6 +391,126 @@ def get_platform_specific_options(platform):
         })
     
     return base_options
+
+def get_server_optimized_options(platform, outtmpl):
+    """서버 환경에 최적화된 yt-dlp 옵션을 반환합니다."""
+    import time
+    import random
+    
+    # 랜덤 User-Agent 목록
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:121.0) Gecko/20100101 Firefox/121.0'
+    ]
+    
+    selected_ua = random.choice(user_agents)
+    
+    # 기본 옵션
+    base_opts = {
+        'format': 'best[height<=720]/best[height<=480]/best',
+        'outtmpl': outtmpl,
+        'quiet': True,
+        'no_warnings': True,
+        'ignoreerrors': True,
+        'nocheckcertificate': True,
+        'socket_timeout': 60,
+        'retries': 5,
+        'fragment_retries': 5,
+        'extractor_retries': 5,
+        'file_access_retries': 3,
+        'user_agent': selected_ua,
+        'sleep_interval': random.uniform(1, 3),
+        'max_sleep_interval': 5,
+        'http_headers': {
+            'User-Agent': selected_ua,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate, br',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none',
+            'Sec-Fetch-User': '?1',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+        }
+    }
+    
+    # 플랫폼별 특화 설정
+    if platform == 'YouTube':
+        base_opts.update({
+            'format': 'best[height<=480]/worst',  # 낮은 품질로 제한
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'sleep_interval': random.uniform(2, 5),  # 더 긴 지연
+            'extractor_retries': 3,  # 재시도 횟수 줄임
+        })
+    elif platform == 'TikTok':
+        base_opts.update({
+            'format': 'best[ext=mp4]',
+            'http_headers': {
+                **base_opts['http_headers'],
+                'Referer': 'https://www.tiktok.com/',
+                'Origin': 'https://www.tiktok.com'
+            }
+        })
+    
+    return base_opts
+
+def download_with_fallback(url, platform, outtmpl):
+    """여러 방법으로 다운로드를 시도하는 함수"""
+    import time
+    import random
+    
+    logger.info(f"서버 환경에서 {platform} 다운로드 시작: {url}")
+    
+    # 방법 1: 기본 yt-dlp
+    try:
+        time.sleep(random.uniform(1, 3))  # 랜덤 지연
+        opts = get_server_optimized_options(platform, outtmpl)
+        logger.info("방법 1: 기본 yt-dlp 시도")
+        
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            ydl.download([url])
+        
+        return True
+    except Exception as e:
+        logger.error(f"방법 1 실패: {str(e)}")
+    
+    # 방법 2: 더 간단한 설정
+    try:
+        time.sleep(random.uniform(2, 4))
+        simple_opts = {
+            'format': 'worst/best',
+            'outtmpl': outtmpl,
+            'quiet': True,
+            'user_agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+        }
+        logger.info("방법 2: 간단한 설정 시도")
+        
+        with yt_dlp.YoutubeDL(simple_opts) as ydl:
+            ydl.download([url])
+        
+        return True
+    except Exception as e:
+        logger.error(f"방법 2 실패: {str(e)}")
+    
+    # 방법 3: YouTube의 경우 pytube 시도
+    if platform == 'YouTube':
+        try:
+            logger.info("방법 3: pytube 시도")
+            time.sleep(random.uniform(1, 2))
+            filename = download_youtube_with_pytube(url, outtmpl)
+            if filename and os.path.exists(filename):
+                return True
+        except Exception as e:
+            logger.error(f"방법 3 실패: {str(e)}")
+    
+    return False
 
 HTML_FORM = '''
 <!doctype html>
@@ -927,6 +1055,15 @@ HTML_FORM = '''
       <div class="brand-intro">
         <h3><i class="fas fa-user-tie"></i> 마케팅 김이사가 만든 서비스</h3>
         <p>내가 <span class="highlight">콘텐츠 제작</span>을 할 때 필요해서 만든 서비스이고, <span class="highlight">무료로 제공</span>하니 편하게 사용해주세요! 🎬</p>
+        ''' + ('''
+        <div style="background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.3); border-radius: 8px; padding: 15px; margin-top: 15px;">
+          <p style="margin: 0; color: #856404; font-size: 0.95em;">
+            <i class="fas fa-info-circle"></i> <strong>서버 환경 안내:</strong> 
+            현재 서버 환경에서는 YouTube 다운로드에 제한이 있을 수 있습니다. 
+            TikTok, Instagram, Reddit 등 다른 플랫폼을 우선 이용해주세요.
+          </p>
+        </div>
+        ''' if IS_SERVER_ENV else '') + '''
         <p style="margin-top: 15px; font-size: 1em; opacity: 0.9;">
           도움이 되었다면 제 강의도 봐주세요! 📚
           <br>
@@ -1150,101 +1287,111 @@ def download():
     try:
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         
-        # YouTube에 대한 특별 처리
-        if platform == 'YouTube':
-            try:
-                # 먼저 pytube로 시도
-                filename = download_youtube_with_pytube(url, outtmpl)
-                if filename and os.path.exists(filename):
-                    base = os.path.basename(filename)
-                    logger.info(f"pytube로 다운로드 완료: {base}")
-                    return send_file(filename, as_attachment=True, download_name=base)
-            except Exception as pytube_error:
-                logger.error(f"pytube 실패: {str(pytube_error)}")
-                # pytube 실패시 yt-dlp 계속 시도
+        # 서버 환경에서는 특별한 다운로드 방법 사용
+        if IS_SERVER_ENV:
+            logger.info("서버 환경 감지 - 최적화된 다운로드 시도")
+            success = download_with_fallback(url, platform, outtmpl)
+            
+            if not success:
+                raise Exception(f"{platform} 다운로드에 실패했습니다. 서버 환경의 제한으로 인해 일부 플랫폼의 다운로드가 제한될 수 있습니다.")
         
-        # yt-dlp 설정 - 더 강화된 헤더와 옵션
-        ydl_opts = {
-            'format': 'best[ext=mp4]/best',
-            'outtmpl': outtmpl,
-            'quiet': False,
-            'no_warnings': False,
-            'ignoreerrors': True,
-            'nocheckcertificate': True,
-            'extractor_retries': 3,
-            'socket_timeout': 30,
-            'retries': 3,
-            'fragment_retries': 3,
-            'file_access_retries': 3,
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Accept-Encoding': 'gzip, deflate, br',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
-            }
-        }
-        
-        # YouTube인 경우 특별한 설정 추가
-        if platform == 'YouTube':
-            ydl_opts.update({
-                'extractor_retries': 5,
-                'retries': 5,
-                'extract_flat': False,
-                'age_limit': None,
-                'skip_download': False,
-                'writesubtitles': False,
-                'writeautomaticsub': False
-            })
-        
-        logger.info(f"yt-dlp 옵션: {ydl_opts}")
-        
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
-            try:
-                logger.info("영상 정보 추출 시작...")
-                info = ydl.extract_info(url, download=False)
-                if not info:
-                    raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
-                
-                title = info.get('title', 'Unknown')
-                duration = info.get('duration', 'Unknown')
-                logger.info(f"영상 제목: {title}, 길이: {duration}초")
-                
-                # 실제 다운로드 실행
-                logger.info("실제 다운로드 시작...")
-                ydl.download([url])
-                
-            except Exception as extract_error:
-                logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
-                # YouTube인 경우 특별한 에러 메시지 제공
-                if platform == 'YouTube':
-                    if 'Sign in to confirm' in str(extract_error) or 'bot' in str(extract_error).lower():
-                        raise Exception("YouTube가 봇 차단을 적용했습니다. 다른 YouTube URL을 시도하거나 잠시 후 다시 시도해주세요.")
-                    elif 'Failed to extract' in str(extract_error):
-                        raise Exception("YouTube 영상에 접근할 수 없습니다. 영상이 비공개이거나 삭제되었을 수 있습니다.")
-                
-                # 정보 추출 실패시에도 직접 다운로드 시도
-                logger.info("정보 추출 실패했지만 직접 다운로드 시도...")
+        else:
+            # 로컬 환경에서는 기존 방법 사용
+            # YouTube에 대한 특별 처리
+            if platform == 'YouTube':
                 try:
+                    # 먼저 pytube로 시도
+                    filename = download_youtube_with_pytube(url, outtmpl)
+                    if filename and os.path.exists(filename):
+                        base = os.path.basename(filename)
+                        logger.info(f"pytube로 다운로드 완료: {base}")
+                        return send_file(filename, as_attachment=True, download_name=base)
+                except Exception as pytube_error:
+                    logger.error(f"pytube 실패: {str(pytube_error)}")
+                    # pytube 실패시 yt-dlp 계속 시도
+            
+            # yt-dlp 설정 - 더 강화된 헤더와 옵션
+            ydl_opts = {
+                'format': 'best[ext=mp4]/best',
+                'outtmpl': outtmpl,
+                'quiet': False,
+                'no_warnings': False,
+                'ignoreerrors': True,
+                'nocheckcertificate': True,
+                'extractor_retries': 3,
+                'socket_timeout': 30,
+                'retries': 3,
+                'fragment_retries': 3,
+                'file_access_retries': 3,
+                'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Connection': 'keep-alive',
+                    'Upgrade-Insecure-Requests': '1',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                }
+            }
+            
+            # YouTube인 경우 특별한 설정 추가
+            if platform == 'YouTube':
+                ydl_opts.update({
+                    'extractor_retries': 5,
+                    'retries': 5,
+                    'extract_flat': False,
+                    'age_limit': None,
+                    'skip_download': False,
+                    'writesubtitles': False,
+                    'writeautomaticsub': False
+                })
+            
+            logger.info(f"yt-dlp 옵션: {ydl_opts}")
+            
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
+                try:
+                    logger.info("영상 정보 추출 시작...")
+                    info = ydl.extract_info(url, download=False)
+                    if not info:
+                        raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
+                    
+                    title = info.get('title', 'Unknown')
+                    duration = info.get('duration', 'Unknown')
+                    logger.info(f"영상 제목: {title}, 길이: {duration}초")
+                    
+                    # 실제 다운로드 실행
+                    logger.info("실제 다운로드 시작...")
                     ydl.download([url])
-                except Exception as download_error:
-                    # YouTube 특별 처리
+                    
+                except Exception as extract_error:
+                    logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
+                    # YouTube인 경우 특별한 에러 메시지 제공
                     if platform == 'YouTube':
-                        error_str = str(download_error).lower()
-                        if 'sign in' in error_str or 'bot' in error_str:
-                            raise Exception("YouTube 봇 차단이 감지되었습니다. 현재 YouTube 다운로드에 제한이 있습니다. TikTok, Instagram, Reddit 등 다른 플랫폼을 사용해주세요.")
-                        elif 'private' in error_str or 'unavailable' in error_str:
-                            raise Exception("이 YouTube 영상은 비공개이거나 사용할 수 없습니다.")
-                    raise download_error
+                        if 'Sign in to confirm' in str(extract_error) or 'bot' in str(extract_error).lower():
+                            raise Exception("YouTube가 봇 차단을 적용했습니다. 다른 YouTube URL을 시도하거나 잠시 후 다시 시도해주세요.")
+                        elif 'Failed to extract' in str(extract_error):
+                            raise Exception("YouTube 영상에 접근할 수 없습니다. 영상이 비공개이거나 삭제되었을 수 있습니다.")
+                    
+                    # 정보 추출 실패시에도 직접 다운로드 시도
+                    logger.info("정보 추출 실패했지만 직접 다운로드 시도...")
+                    try:
+                        ydl.download([url])
+                    except Exception as download_error:
+                        # YouTube 특별 처리
+                        if platform == 'YouTube':
+                            error_str = str(download_error).lower()
+                            if 'sign in' in error_str or 'bot' in error_str:
+                                raise Exception("YouTube 봇 차단이 감지되었습니다. 현재 YouTube 다운로드에 제한이 있습니다. TikTok, Instagram, Reddit 등 다른 플랫폼을 사용해주세요.")
+                            elif 'private' in error_str or 'unavailable' in error_str:
+                                raise Exception("이 YouTube 영상은 비공개이거나 사용할 수 없습니다.")
+                        raise download_error
         
         # 다운로드된 파일 찾기
         files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv', '.m4a', '.mp3'))]
