@@ -26,7 +26,11 @@ def detect_platform(url):
     elif 'instagram.com' in url_lower or 'instagr.am' in url_lower:
         return 'Instagram', 'fab fa-instagram', '#E4405F'
     elif 'reddit.com' in url_lower or 'redd.it' in url_lower:
-        return 'Reddit', 'fab fa-reddit', '#FF4500'
+        # Reddit URL 정규화
+        if '/comments/' in url_lower:
+            return 'Reddit', 'fab fa-reddit', '#FF4500'
+        else:
+            return 'Reddit', 'fab fa-reddit', '#FF4500'
     elif 'twitter.com' in url_lower or 'x.com' in url_lower:
         return 'Twitter/X', 'fab fa-twitter', '#1DA1F2'
     elif 'facebook.com' in url_lower or 'fb.com' in url_lower:
@@ -422,6 +426,8 @@ HTML_FORM = '''
         <div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 5px; font-size: 0.9em; color: #0c5460;">
           <i class="fas fa-info-circle"></i>
           <strong>Reddit 팁:</strong> Reddit Videos, GIFs, v.redd.it 링크를 지원합니다. 대부분 공개 콘텐츠입니다.
+          <br><small style="color: #0a4b52;">💡 Reddit은 공유 버튼이 없어서 브라우저 주소창의 URL을 복사해서 사용하세요!</small>
+          <br><small style="color: #0a4b52;">📝 예시: https://www.reddit.com/r/aivideo/comments/1m9hn4u/cool_veo_3_ability/</small>
         </div>
       </div>
       
