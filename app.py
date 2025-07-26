@@ -1155,50 +1155,26 @@ def download():
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         logger.info(f"yt-dlp 옵션: {ydl_opts}")
         
-        # YouTube인 경우 가장 단순한 설정으로 다운로드
-        if platform == 'YouTube':
-            try:
-                logger.info("YouTube - 단순한 yt-dlp 설정 사용")
-                simple_opts = {
-                    'format': 'best[ext=mp4]/best',
-                    'outtmpl': outtmpl,
-                    'quiet': True,
-                    'no_warnings': True
-                }
-                with yt_dlp.YoutubeDL(simple_opts) as ydl:
-                    ydl.download([url])
-                
-                # 파일 찾기
-                files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
-                if files:
-                    files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
-                    filename = os.path.join(DOWNLOAD_FOLDER, files[0])
-                    base = os.path.basename(filename)
-                    logger.info(f"단순 설정 다운로드 완료: {base}")
-                else:
-                    raise Exception("다운로드된 파일을 찾을 수 없습니다.")
-            except Exception as simple_error:
-                logger.error(f"단순 설정 실패, pytube로 재시도: {str(simple_error)}")
-                # 단순 설정 실패시 pytube로 재시도
-                try:
-                    filename = download_youtube_with_pytube(url, outtmpl)
-                    base = os.path.basename(filename)
-                    logger.info(f"pytube 다운로드 완료: {base}")
-                except Exception as pytube_error:
-                    logger.error(f"pytube도 실패, 원래 설정으로 재시도: {str(pytube_error)}")
-                    # 원래 설정으로 재시도
-                    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                        ydl.download([url])
-                        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
-                        if files:
-                            files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
-                            filename = os.path.join(DOWNLOAD_FOLDER, files[0])
-                            base = os.path.basename(filename)
-                            logger.info(f"원래 설정 다운로드 완료: {base}")
-                        else:
-                            raise Exception("다운로드된 파일을 찾을 수 없습니다.")
+        # 모든 플랫폼에 대해 단순한 yt-dlp 설정 사용
+        simple_opts = {
+            'format': 'best[ext=mp4]/best',
+            'outtmpl': outtmpl,
+            'quiet': True,
+            'no_warnings': True
+        }
+        
+        with yt_dlp.YoutubeDL(simple_opts) as ydl:
+            ydl.download([url])
+        
+        # 파일 찾기
+        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
+        if files:
+            files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
+            filename = os.path.join(DOWNLOAD_FOLDER, files[0])
+            base = os.path.basename(filename)
+            logger.info(f"다운로드 완료: {base}")
         else:
-            # 다른 플랫폼은 기존 yt-dlp 사용
+            raise Exception("다운로드된 파일을 찾을 수 없습니다.")
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
                 try:
