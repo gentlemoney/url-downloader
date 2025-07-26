@@ -513,45 +513,51 @@ HTML_FORM = '''
       .tip-card {
         display: flex;
         align-items: flex-start;
-        padding: 20px;
-        background: rgba(255, 255, 255, 0.8);
-        backdrop-filter: blur(5px);
+        padding: 25px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
         border-radius: 15px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(255, 255, 255, 0.5);
         transition: all 0.3s ease;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.08);
       }
       
       .tip-card:hover {
         transform: translateY(-3px);
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-        background: rgba(255, 255, 255, 0.95);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        background: rgba(255, 255, 255, 1);
+        border: 1px solid rgba(255, 255, 255, 0.8);
       }
       
       .tip-icon {
-        font-size: 2em;
-        margin-right: 15px;
-        margin-top: 5px;
-        min-width: 40px;
+        font-size: 2.2em;
+        margin-right: 18px;
+        margin-top: 3px;
+        min-width: 45px;
         text-align: center;
+        color: #333;
       }
       
       .tip-content h4 {
-        margin: 0 0 10px 0;
-        color: #333;
-        font-size: 1.1em;
-        font-weight: 600;
+        margin: 0 0 12px 0;
+        color: #222;
+        font-size: 1.2em;
+        font-weight: 700;
       }
       
       .tip-content p {
-        margin: 0 0 10px 0;
-        color: #666;
-        line-height: 1.5;
+        margin: 0 0 12px 0;
+        color: #444;
+        line-height: 1.6;
+        font-size: 1em;
       }
       
       .tip-content small {
-        color: #888;
-        font-size: 0.85em;
-        line-height: 1.4;
+        color: #555;
+        font-size: 0.9em;
+        line-height: 1.5;
+        display: block;
+        margin-top: 8px;
       }
       
       .input-group {
