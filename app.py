@@ -15,6 +15,30 @@ logger = logging.getLogger(__name__)
 DOWNLOAD_FOLDER = 'downloads'
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
+def normalize_facebook_url(url):
+    """Facebook URL을 정규화합니다."""
+    import re
+    
+    # Facebook URL 패턴들
+    patterns = [
+        r'https?://(?:www\.)?facebook\.com/[^/]+/videos/\d+',
+        r'https?://(?:www\.)?facebook\.com/video\.php\?v=\d+',
+        r'https?://(?:www\.)?facebook\.com/watch/\?v=\d+',
+        r'https?://(?:www\.)?facebook\.com/reel/\d+',
+        r'https?://(?:www\.)?fb\.com/[^/]+/videos/\d+',
+        r'https?://(?:www\.)?fb\.com/video\.php\?v=\d+',
+        r'https?://(?:www\.)?fb\.com/watch/\?v=\d+',
+        r'https?://(?:www\.)?fb\.com/reel/\d+',
+    ]
+    
+    for pattern in patterns:
+        if re.match(pattern, url):
+            # URL 끝의 슬래시 제거
+            url = url.rstrip('/')
+            return url
+    
+    return url
+
 def normalize_twitter_url(url):
     """Twitter/X URL을 정규화합니다."""
     import re
@@ -162,9 +186,31 @@ def get_platform_specific_options(platform):
         })
     elif platform == 'Facebook':
         base_options.update({
-            'format': 'best[ext=mp4]/best',
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
             'cookiesfrombrowser': ('chrome',),
+            'extract_flat': False,
+            'ignoreerrors': True,
+            'extractor_retries': 5,
+            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'nocheckcertificate': True,
+            'no_warnings': False,
+            'quiet': False,
+            'extractaudio': False,
+            'audioformat': 'mp3',
+            'audioquality': '0',
+            'recodevideo': 'mp4',
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'prefer_ffmpeg': True,
+            'keepvideo': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'subtitleslangs': ['en'],
+            'skip_download': False,
+            'outtmpl': '%(title)s.%(ext)s',
         })
     else:  # YouTube 및 기타
         base_options.update({
@@ -516,6 +562,12 @@ HTML_FORM = '''
           <br><small style="color: #0f5132;">💡 Twitter/X는 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
           <br><small style="color: #0f5132;">📝 예시: https://twitter.com/username/status/1234567890</small>
         </div>
+        <div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-radius: 5px; font-size: 0.9em; color: #0d47a1;">
+          <i class="fas fa-info-circle"></i>
+          <strong>Facebook 팁:</strong> Facebook 비디오, Reels, Watch 콘텐츠를 지원합니다. 공개 비디오만 다운로드 가능합니다.
+          <br><small style="color: #0a3d91;">💡 Facebook은 공유 버튼을 통해 링크를 복사하거나 브라우저 주소창의 URL을 사용하세요!</small>
+          <br><small style="color: #0a3d91;">📝 예시: https://facebook.com/username/videos/1234567890</small>
+        </div>
       </div>
       
       <div class="features">
@@ -617,6 +669,12 @@ def download():
         original_url = url
         url = normalize_twitter_url(url)
         logger.info(f"Twitter/X URL 정규화: {original_url} -> {url}")
+    
+    # Facebook URL 정규화
+    if platform == 'Facebook':
+        original_url = url
+        url = normalize_facebook_url(url)
+        logger.info(f"Facebook URL 정규화: {original_url} -> {url}")
     
     # 고유 파일명 생성
     outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
