@@ -60,6 +60,7 @@ def download_threads_video(url, outtmpl):
         
         # 페이지에서 비디오 URL 찾기
         page_content = response.text
+        logger.info(f"Threads 페이지 내용 길이: {len(page_content)}")
         
         # 다양한 패턴으로 비디오 URL 찾기
         video_patterns = [
@@ -68,13 +69,23 @@ def download_threads_video(url, outtmpl):
             r'<video[^>]+src="([^"]+)"',
             r'"media_url":"([^"]+)"',
             r'"url":"([^"]+\.mp4[^"]*)"',
+            r'"video_url":"([^"]+\.mp4[^"]*)"',
+            r'"media_url":"([^"]+\.mp4[^"]*)"',
+            r'"url":"([^"]+)"',
+            r'"src":"([^"]+\.mp4[^"]*)"',
+            r'"contentUrl":"([^"]+\.mp4[^"]*)"',
+            r'"content_url":"([^"]+\.mp4[^"]*)"',
+            r'"playbackUrl":"([^"]+\.mp4[^"]*)"',
+            r'"playback_url":"([^"]+\.mp4[^"]*)"',
+            r'"streamUrl":"([^"]+\.mp4[^"]*)"',
+            r'"stream_url":"([^"]+\.mp4[^"]*)"',
         ]
         
         video_url = None
         for pattern in video_patterns:
             matches = re.findall(pattern, page_content)
             for match in matches:
-                if '.mp4' in match or 'video' in match.lower():
+                if '.mp4' in match or 'video' in match.lower() or 'cdninstagram' in match:
                     video_url = match.replace('\\u0026', '&').replace('\\/', '/')
                     break
             if video_url:
