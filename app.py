@@ -840,7 +840,8 @@ def download():
         
         try:
             # Threads 직접 다운로드 시도
-            filename = download_threads_video(url, outtmpl)
+            threads_outtmpl = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.%(ext)s")
+            filename = download_threads_video(url, threads_outtmpl)
             base = os.path.basename(filename)
             logger.info(f"Threads 직접 다운로드 완료: {base}")
             return render_template_string(HTML_FORM, filename=base)
@@ -913,4 +914,4 @@ def file(filename):
     return "파일이 존재하지 않습니다.", 404
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.run(debug=True, host='0.0.0.0', port=8080) 
