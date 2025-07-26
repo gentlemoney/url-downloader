@@ -6,6 +6,7 @@ import logging
 import requests
 import json
 import re
+from pytube import YouTube
 
 from urllib.parse import urlparse, parse_qs
 
@@ -25,6 +26,29 @@ DOWNLOAD_FOLDER = 'downloads'
 if not os.path.exists(DOWNLOAD_FOLDER):
     os.makedirs(DOWNLOAD_FOLDER)
 
+def download_youtube_with_pytube(url, outtmpl):
+    """pytube를 사용하여 YouTube 비디오를 다운로드합니다."""
+    try:
+        logger.info(f"pytube로 YouTube 다운로드 시작: {url}")
+        
+        # YouTube 객체 생성
+        yt = YouTube(url)
+        
+        # 최고 품질의 MP4 스트림 선택
+        stream = yt.streams.filter(progressive=True, file_extension='mp4').order_by('resolution').desc().first()
+        
+        if not stream:
+            raise Exception("적절한 스트림을 찾을 수 없습니다")
+        
+        # 파일 다운로드
+        filename = stream.download(output_path=DOWNLOAD_FOLDER, filename=os.path.basename(outtmpl))
+        
+        logger.info(f"pytube 다운로드 완료: {filename}")
+        return filename
+        
+    except Exception as e:
+        logger.error(f"pytube 다운로드 실패: {str(e)}")
+        raise e
 
 
 def normalize_threads_url(url):
@@ -1129,53 +1153,77 @@ def download():
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         logger.info(f"yt-dlp 옵션: {ydl_opts}")
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
+        # YouTube인 경우 pytube 사용, 다른 플랫폼은 yt-dlp 사용
+        if platform == 'YouTube':
             try:
-                logger.info("영상 정보 추출 시작...")
-                info = ydl.extract_info(url, download=False)
-                if not info:
-                    raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
-                
-                title = info.get('title', 'Unknown')
-                duration = info.get('duration', 'Unknown')
-                logger.info(f"영상 제목: {title}, 길이: {duration}초")
-                
-                # 실제 다운로드 실행
-                logger.info("실제 다운로드 시작...")
-                ydl.download([url])
-                
-                # 다운로드된 파일 찾기
-                filename = ydl.prepare_filename(info)
-                logger.info(f"예상 파일명: {filename}")
-                
-                # 실제 다운로드된 파일 찾기
-                if not filename or not os.path.exists(filename):
-                    # downloads 폴더에서 가장 최근 파일 찾기
+                logger.info("YouTube - pytube 사용")
+                filename = download_youtube_with_pytube(url, outtmpl)
+                base = os.path.basename(filename)
+                logger.info(f"pytube 다운로드 완료: {base}")
+            except Exception as pytube_error:
+                logger.error(f"pytube 실패, yt-dlp로 재시도: {str(pytube_error)}")
+                # pytube 실패시 yt-dlp로 재시도
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    logger.info("yt-dlp로 재시도...")
+                    ydl.download([url])
+                    # 파일 찾기
                     files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
                     if files:
-                        # 가장 최근 파일 선택
                         files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
                         filename = os.path.join(DOWNLOAD_FOLDER, files[0])
-                        logger.info(f"찾은 파일: {filename}")
+                        base = os.path.basename(filename)
+                        logger.info(f"yt-dlp 다운로드 완료: {base}")
                     else:
                         raise Exception("다운로드된 파일을 찾을 수 없습니다.")
+        else:
+            # 다른 플랫폼은 기존 yt-dlp 사용
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
+                try:
+                    logger.info("영상 정보 추출 시작...")
+                    info = ydl.extract_info(url, download=False)
+                    if not info:
+                        raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
+                    
+                    title = info.get('title', 'Unknown')
+                    duration = info.get('duration', 'Unknown')
+                    logger.info(f"영상 제목: {title}, 길이: {duration}초")
+                    
+                    # 실제 다운로드 실행
+                    logger.info("실제 다운로드 시작...")
+                    ydl.download([url])
+                    
+                    # 다운로드된 파일 찾기
+                    filename = ydl.prepare_filename(info)
+                    logger.info(f"예상 파일명: {filename}")
+                    
+                    # 실제 다운로드된 파일 찾기
+                    if not filename or not os.path.exists(filename):
+                        # downloads 폴더에서 가장 최근 파일 찾기
+                        files = [f for f in os.listdir(DOWNLOAD_FOLDER) if f.endswith(('.mp4', '.webm', '.mkv'))]
+                        if files:
+                            # 가장 최근 파일 선택
+                            files.sort(key=lambda x: os.path.getmtime(os.path.join(DOWNLOAD_FOLDER, x)), reverse=True)
+                            filename = os.path.join(DOWNLOAD_FOLDER, files[0])
+                            logger.info(f"찾은 파일: {filename}")
+                        else:
+                            raise Exception("다운로드된 파일을 찾을 수 없습니다.")
+                    
+                    # 파일 확장자 확인 및 변환
+                    if not filename.endswith('.mp4'):
+                        base_name = os.path.splitext(filename)[0]
+                        new_filename = base_name + '.mp4'
+                        if os.path.exists(filename):
+                            os.rename(filename, new_filename)
+                            filename = new_filename
+                    
+                    base = os.path.basename(filename)
+                    logger.info(f"다운로드 완료: {base}")
                 
-                # 파일 확장자 확인 및 변환
-                if not filename.endswith('.mp4'):
-                    base_name = os.path.splitext(filename)[0]
-                    new_filename = base_name + '.mp4'
-                    if os.path.exists(filename):
-                        os.rename(filename, new_filename)
-                        filename = new_filename
-                
-                base = os.path.basename(filename)
-                logger.info(f"다운로드 완료: {base}")
-                
-            except Exception as extract_error:
-                logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
-                raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
-            
+                except Exception as extract_error:
+                    logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
+                    raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
+        
         return render_template_string(HTML_FORM, filename=base)
         
     except Exception as e:
