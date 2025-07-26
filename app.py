@@ -954,9 +954,9 @@ HTML_FORM = '''
           <p>다운로드 중...</p>
         </div>
         
-        {% if filename %}
+        {% if success %}
         <div class="result success">
-          <i class="fas fa-check-circle"></i> 다운로드 완료!
+          <i class="fas fa-check-circle"></i> {{ success }}
           <br>
           <a href="/file/{{ filename }}" class="download-link">
             <i class="fas fa-download"></i> 파일 다운로드
@@ -1247,9 +1247,8 @@ def download():
                     raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
         
         # 다운로드 성공시 다운로드 링크 제공
-        download_url = f"/file/{base}"
         success_msg = f"다운로드 완료! 파일명: {base}"
-        return render_template_string(HTML_FORM, success=success_msg, download_url=download_url, filename=base)
+        return render_template_string(HTML_FORM, success=success_msg, filename=base)
         
     except Exception as e:
         error_msg = f"다운로드 실패: {str(e)}"
