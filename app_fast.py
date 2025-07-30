@@ -9,8 +9,8 @@ import json
 
 app = Flask(__name__)
 
-# 로깅 설정
-logging.basicConfig(level=logging.INFO)
+# 로깅 설정 - 최소화
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # 임시 저장 폴더
@@ -31,19 +31,14 @@ def detect_platform(url):
             return 'Reddit', 'fab fa-reddit', '#FF4500'
     elif 'twitter.com' in url_lower or 'x.com' in url_lower:
         return 'Twitter/X', 'fab fa-twitter', '#1DA1F2'
-    elif 'threads.net' in url_lower:
-        return 'Threads', 'fab fa-threads', '#000000'
     else:
         return 'Unknown', 'fas fa-video', '#666666'
 
 def get_platform_specific_options(platform):
     """플랫폼별 최적화된 다운로드 옵션을 반환합니다."""
-    # Render 환경 확인
-    is_render = os.environ.get('RENDER') == 'true'
-    
     base_options = {
-        'quiet': False,
-        'no_warnings': False,
+        'quiet': True,  # 더 조용하게
+        'no_warnings': True,  # 경고 메시지 숨김
         'extract_flat': False,
         'ignoreerrors': False,
         'nocheckcertificate': True,
@@ -54,19 +49,17 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),
         })
-        if not is_render:
-            base_options['cookiesfrombrowser'] = ('chrome',)
     elif platform == 'Instagram':
         base_options.update({
             'format': 'best[ext=mp4]/best[height<=1080]/best',
             'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
         })
-        if not is_render:
-            base_options['cookiesfrombrowser'] = ('chrome',)
     elif platform == 'Reddit':
         base_options.update({
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
@@ -75,9 +68,10 @@ def get_platform_specific_options(platform):
             'ignoreerrors': True,
             'extractor_retries': 5,
             'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'cookiesfrombrowser': ('chrome',),
             'nocheckcertificate': True,
-            'no_warnings': False,
-            'quiet': False,
+            'no_warnings': True,
+            'quiet': True,
             'extractaudio': False,
             'audioformat': 'mp3',
             'audioquality': '0',
@@ -94,19 +88,18 @@ def get_platform_specific_options(platform):
             'skip_download': False,
             'outtmpl': '%(title)s.%(ext)s',
         })
-        if not is_render:
-            base_options['cookiesfrombrowser'] = ('chrome',)
     elif platform == 'Twitter/X':
         base_options.update({
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
+            'cookiesfrombrowser': ('chrome',),
             'extract_flat': False,
             'ignoreerrors': True,
             'extractor_retries': 5,
             'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'nocheckcertificate': True,
-            'no_warnings': False,
-            'quiet': False,
+            'no_warnings': True,
+            'quiet': True,
             'extractaudio': False,
             'audioformat': 'mp3',
             'audioquality': '0',
@@ -123,52 +116,37 @@ def get_platform_specific_options(platform):
             'skip_download': False,
             'outtmpl': '%(title)s.%(ext)s',
         })
-        if not is_render:
-            base_options['cookiesfrombrowser'] = ('chrome',)
-    elif platform == 'Threads':
-        # Threads는 Instagram 계열이므로 유사한 설정 사용
+    else:  # YouTube
         base_options.update({
-            'format': 'best[ext=mp4]/best',
+            'format': 'bestvideo[ext=mp4][height<=1080]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'extract_flat': False,
-            'ignoreerrors': True,
-            'extractor_retries': 5,
-            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'nocheckcertificate': True,
-            'no_warnings': False,
-            'quiet': False,
-        })
-        if not is_render:
-            base_options['cookiesfrombrowser'] = ('chrome',)
-    else:  # YouTube 및 기타
-        base_options.update({
-            'format': 'best[ext=mp4]/best',
-            'merge_output_format': 'mp4',
-            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Sec-Fetch-Dest': 'document',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'none',
-                'Sec-Fetch-User': '?1',
-                'Cache-Control': 'max-age=0',
-            },
+            'extractaudio': False,
+            'audioformat': 'mp3',
+            'audioquality': '0',
+            'recodevideo': 'mp4',
+            'postprocessors': [{
+                'key': 'FFmpegVideoConvertor',
+                'preferedformat': 'mp4',
+            }],
+            'prefer_ffmpeg': True,
+            'keepvideo': True,
+            'writesubtitles': False,
+            'writeautomaticsub': False,
+            'subtitleslangs': ['en'],
+            'skip_download': False,
+            'outtmpl': '%(title)s.%(ext)s',
         })
     
     return base_options
 
+# HTML 템플릿 (app.py와 동일)
 HTML_FORM = '''
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>소셜 미디어 다운로드 - gptkimisa.com</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>소셜 미디어 다운로더</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
       * {
@@ -192,85 +170,80 @@ HTML_FORM = '''
         border-radius: 20px;
         box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         padding: 40px;
-        max-width: 700px;
         width: 100%;
+        max-width: 500px;
         text-align: center;
-      }
-      
-      .logo {
-        font-size: 2.5em;
-        color: #ff0000;
-        margin-bottom: 10px;
       }
       
       h1 {
         color: #333;
-        margin-bottom: 10px;
-        font-size: 2em;
-        font-weight: 300;
-      }
-      
-      .subtitle {
-        color: #666;
         margin-bottom: 30px;
-        font-size: 1.1em;
+        font-size: 2.5em;
+        font-weight: 700;
       }
       
       .platform-info {
         background: #f8f9fa;
         border-radius: 10px;
         padding: 15px;
-        margin-bottom: 20px;
+        margin: 20px 0;
         display: none;
+        align-items: center;
+        gap: 10px;
+        border-left: 4px solid #007bff;
       }
       
       .platform-info.show {
-        display: block;
+        display: flex;
       }
       
       .platform-icon {
         font-size: 1.5em;
-        margin-right: 10px;
+      }
+      
+      .platform-name {
+        font-weight: 600;
+        color: #333;
       }
       
       .form-group {
-        margin-bottom: 20px;
+        margin-bottom: 25px;
       }
       
-      .input-group {
-        display: flex;
-        gap: 10px;
-        margin-bottom: 20px;
+      label {
+        display: block;
+        margin-bottom: 8px;
+        color: #555;
+        font-weight: 600;
+        text-align: left;
       }
       
-      input[type="text"] {
-        flex: 1;
-        padding: 15px 20px;
+      input[type="url"] {
+        width: 100%;
+        padding: 15px;
         border: 2px solid #e1e5e9;
         border-radius: 10px;
         font-size: 16px;
-        transition: all 0.3s ease;
-        outline: none;
+        transition: border-color 0.3s ease;
       }
       
-      input[type="text"]:focus {
+      input[type="url"]:focus {
+        outline: none;
         border-color: #667eea;
         box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
       }
       
       button {
-        padding: 15px 30px;
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
         border: none;
+        padding: 15px 30px;
         border-radius: 10px;
-        cursor: pointer;
         font-size: 16px;
         font-weight: 600;
-        transition: all 0.3s ease;
-        display: flex;
-        align-items: center;
-        gap: 10px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        width: 100%;
       }
       
       button:hover {
@@ -284,98 +257,9 @@ HTML_FORM = '''
         transform: none;
       }
       
-      .error {
-        background: #fee;
-        color: #c33;
-        padding: 15px;
-        border-radius: 10px;
-        margin-top: 20px;
-        border-left: 4px solid #c33;
-      }
-      
-      .success {
-        background: #efe;
-        color: #363;
-        padding: 15px;
-        border-radius: 10px;
-        margin-top: 20px;
-        border-left: 4px solid #363;
-      }
-      
-      .download-link {
-        display: inline-block;
-        background: #28a745;
-        color: white;
-        padding: 12px 25px;
-        text-decoration: none;
-        border-radius: 8px;
-        margin-top: 10px;
-        transition: all 0.3s ease;
-      }
-      
-      .download-link:hover {
-        background: #218838;
-        transform: translateY(-1px);
-      }
-      
-      .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 20px;
-        margin-top: 30px;
-        padding-top: 30px;
-        border-top: 1px solid #eee;
-      }
-      
-      .feature {
-        text-align: center;
-        padding: 20px;
-      }
-      
-      .feature i {
-        font-size: 2em;
-        color: #667eea;
-        margin-bottom: 10px;
-      }
-      
-      .feature h3 {
-        color: #333;
-        margin-bottom: 5px;
-        font-size: 1.1em;
-      }
-      
-      .feature p {
-        color: #666;
-        font-size: 0.9em;
-      }
-      
-      .supported-platforms {
-        margin-top: 20px;
-        padding: 20px;
-        background: #f8f9fa;
-        border-radius: 10px;
-      }
-      
-      .platform-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-        gap: 15px;
-        margin-top: 15px;
-      }
-      
-      .platform-item {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 8px;
-        border-radius: 5px;
-        background: white;
-        font-size: 0.9em;
-      }
-      
       .loading {
         display: none;
-        margin-top: 20px;
+        margin: 20px 0;
       }
       
       .spinner {
@@ -393,129 +277,128 @@ HTML_FORM = '''
         100% { transform: rotate(360deg); }
       }
       
-      @media (max-width: 768px) {
-        .container {
-          padding: 20px;
-          margin: 10px;
-        }
-        
-        .input-group {
-          flex-direction: column;
-        }
-        
-        h1 {
-          font-size: 1.5em;
-        }
+      .error {
+        background: #ffe6e6;
+        color: #d63031;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px 0;
+        border-left: 4px solid #d63031;
+      }
+      
+      .success {
+        background: #e6ffe6;
+        color: #00b894;
+        padding: 15px;
+        border-radius: 10px;
+        margin: 20px 0;
+        border-left: 4px solid #00b894;
+      }
+      
+      .download-link {
+        display: inline-block;
+        background: #00b894;
+        color: white;
+        text-decoration: none;
+        padding: 12px 25px;
+        border-radius: 8px;
+        font-weight: 600;
+        margin-top: 10px;
+        transition: background 0.3s ease;
+      }
+      
+      .download-link:hover {
+        background: #00a085;
+      }
+      
+      .features {
+        margin-top: 30px;
+        text-align: left;
+      }
+      
+      .features h3 {
+        color: #333;
+        margin-bottom: 15px;
+      }
+      
+      .feature-list {
+        list-style: none;
+        padding: 0;
+      }
+      
+      .feature-list li {
+        padding: 8px 0;
+        color: #666;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .feature-list li i {
+        color: #667eea;
+        width: 20px;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <div class="logo">
-        <i class="fas fa-download"></i>
-      </div>
-      <h1>소셜 미디어 다운로드</h1>
-      <p class="subtitle">YouTube, TikTok, Instagram 등 다양한 플랫폼의 영상을 다운로드하세요</p>
+      <h1>🎬 소셜 미디어 다운로더</h1>
       
       <div class="platform-info" id="platformInfo">
         <i class="platform-icon" id="platformIcon"></i>
-        <span id="platformName">플랫폼을 감지했습니다</span>
+        <span class="platform-name" id="platformName"></span>
       </div>
       
-      <form method="post" action="/" id="downloadForm">
+      <form id="downloadForm" method="POST">
         <div class="form-group">
-          <div class="input-group">
-            <input type="text" name="url" placeholder="영상 링크를 입력하세요 (YouTube, TikTok, Instagram 등)" required id="urlInput">
-            <button type="submit" id="downloadBtn">
-              <i class="fas fa-download"></i>
-              다운로드
-            </button>
-          </div>
+          <label for="url">동영상 URL:</label>
+          <input type="url" id="url" name="url" placeholder="https://www.youtube.com/watch?v=..." required>
         </div>
+        
+        <button type="submit" id="downloadBtn">
+          <i class="fas fa-download"></i> 다운로드
+        </button>
       </form>
       
       <div class="loading" id="loading">
         <div class="spinner"></div>
-        <p>다운로드 중입니다...</p>
+        <p>동영상을 다운로드하고 있습니다...</p>
       </div>
       
       {% if error %}
-        <div class="error">
-          <i class="fas fa-exclamation-triangle"></i>
-          {{ error }}
-        </div>
+      <div class="error">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+      </div>
       {% endif %}
       
       {% if filename %}
-        <div class="success">
-          <i class="fas fa-check-circle"></i>
-          다운로드가 완료되었습니다!
-          <br>
-          <a href="/file/{{ filename }}" class="download-link">
-            <i class="fas fa-download"></i>
-            파일 다운로드
-          </a>
-        </div>
+      <div class="success">
+        <i class="fas fa-check-circle"></i> 다운로드가 완료되었습니다!
+        <br>
+        <a href="/file/{{ filename }}" class="download-link">
+          <i class="fas fa-download"></i> 파일 다운로드
+        </a>
+      </div>
       {% endif %}
       
-      <div class="supported-platforms">
-        <h3>지원하는 플랫폼</h3>
-        <div class="platform-grid">
-          <div class="platform-item">
-            <i class="fab fa-youtube" style="color: #FF0000;"></i>
-            <span>YouTube</span>
-          </div>
-          <div class="platform-item">
-            <i class="fab fa-tiktok" style="color: #000000;"></i>
-            <span>TikTok</span>
-          </div>
-          <div class="platform-item">
-            <i class="fab fa-instagram" style="color: #E4405F;"></i>
-            <span>Instagram</span>
-          </div>
-          <div class="platform-item">
-            <i class="fab fa-reddit" style="color: #FF4500;"></i>
-            <span>Reddit</span>
-          </div>
-          <div class="platform-item">
-            <i class="fab fa-twitter" style="color: #1DA1F2;"></i>
-            <span>Twitter/X</span>
-          </div>
-          <div class="platform-item">
-            <i class="fab fa-threads" style="color: #000000;"></i>
-            <span>Threads</span>
-          </div>
-        </div>
-        <div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 5px; font-size: 0.9em; color: #856404;">
-          <i class="fas fa-info-circle"></i>
-          <strong>Instagram 팁:</strong> Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.
-        </div>
-      </div>
-      
       <div class="features">
-        <div class="feature">
-          <i class="fas fa-bolt"></i>
-          <h3>빠른 다운로드</h3>
-          <p>고속 서버로 빠른 다운로드</p>
-        </div>
-        <div class="feature">
-          <i class="fas fa-shield-alt"></i>
-          <h3>안전한 서비스</h3>
-          <p>개인정보 보호 및 안전한 다운로드</p>
-        </div>
-        <div class="feature">
-          <i class="fas fa-mobile-alt"></i>
-          <h3>모바일 친화적</h3>
-          <p>모든 기기에서 편리하게 사용</p>
-        </div>
+        <h3>지원 플랫폼:</h3>
+        <ul class="feature-list">
+          <li><i class="fab fa-youtube"></i> YouTube</li>
+          <li><i class="fab fa-tiktok"></i> TikTok</li>
+          <li><i class="fab fa-instagram"></i> Instagram</li>
+          <li><i class="fab fa-reddit"></i> Reddit</li>
+          <li><i class="fab fa-twitter"></i> Twitter/X</li>
+        </ul>
       </div>
     </div>
     
     <script>
-      document.getElementById('urlInput').addEventListener('input', function() {
-        const url = this.value;
+      document.getElementById('url').addEventListener('input', function() {
+        const url = this.value.trim();
+        const urlLower = url.toLowerCase();
+        
         if (url) {
-          const urlLower = url.toLowerCase();
           let platform = 'Unknown';
           let icon = 'fas fa-video';
           let color = '#666666';
@@ -540,10 +423,6 @@ HTML_FORM = '''
             platform = 'Twitter/X';
             icon = 'fab fa-twitter';
             color = '#1DA1F2';
-          } else if (urlLower.includes('threads.net')) {
-            platform = 'Threads';
-            icon = 'fab fa-threads';
-            color = '#000000';
           }
           
           document.getElementById('platformName').textContent = platform;
@@ -638,14 +517,5 @@ def file(filename):
     return "파일이 존재하지 않습니다.", 404
 
 if __name__ == '__main__':
-    # Render 환경 자동 감지
-    if os.environ.get('RENDER'):
-        os.environ['RENDER'] = 'true'
-        print("🚀 Render 환경에서 실행 중...")
-    
-    # 로컬: 0.0.0.0:3000, Render: PORT 환경변수 사용
-    port = int(os.environ.get('PORT', 3000))
-    host = os.environ.get('HOST', '0.0.0.0')
-    debug_mode = False if os.environ.get('RENDER') else True
-    
-    app.run(debug=debug_mode, host=host, port=port) 
+    # 개발 모드 비활성화로 빠른 시작
+    app.run(debug=False, host='0.0.0.0', port=3000, threaded=True) 
