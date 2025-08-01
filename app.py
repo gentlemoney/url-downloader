@@ -38,8 +38,12 @@ def detect_platform(url):
 
 def get_platform_specific_options(platform):
     """플랫폼별 최적화된 다운로드 옵션을 반환합니다."""
-    # Render 환경 확인
-    is_render = os.environ.get('RENDER') == 'true'
+    # Render 환경 확인 (더 정확한 감지)
+    is_render = (
+        os.environ.get('RENDER') == 'true' or 
+        os.environ.get('RENDER_SERVICE_NAME') is not None or
+        'onrender.com' in os.environ.get('HOSTNAME', '')
+    )
     
     base_options = {
         'quiet': False,
@@ -48,6 +52,10 @@ def get_platform_specific_options(platform):
         'ignoreerrors': False,
         'nocheckcertificate': True,
         'extractor_retries': 3,
+        'socket_timeout': 30,
+        'retries': 10,
+        'fragment_retries': 10,
+        'http_chunk_size': 10485760,  # 10MB chunks
     }
     
     if platform == 'TikTok':
@@ -144,9 +152,9 @@ def get_platform_specific_options(platform):
         base_options.update({
             'format': 'best[ext=mp4]/best',
             'merge_output_format': 'mp4',
-            'user_agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'http_headers': {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
                 'Accept-Language': 'en-US,en;q=0.5',
                 'Accept-Encoding': 'gzip, deflate',
@@ -158,7 +166,22 @@ def get_platform_specific_options(platform):
                 'Sec-Fetch-User': '?1',
                 'Cache-Control': 'max-age=0',
             },
+            'age_limit': None,
+            'geo_bypass': True,
+            'geo_bypass_country': 'US',
+            'prefer_free_formats': True,
         })
+        
+        # YouTube 특별 처리
+        if 'youtube' in platform.lower():
+            base_options.update({
+                'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+                'youtube_include_dash_manifest': False,
+                'youtube_include_hls_manifest': False,
+                'no_check_certificates': True,
+                'cookiesfrombrowser': None,  # Render에서는 브라우저 쿠키 사용 불가
+                'use_extractors': ['youtube:tab', 'youtube'],
+            })
     
     return base_options
 
@@ -490,6 +513,10 @@ HTML_FORM = '''
           <i class="fas fa-info-circle"></i>
           <strong>Instagram 팁:</strong> Reels, Stories, Posts 비디오를 지원합니다. 일부 콘텐츠는 로그인이 필요할 수 있습니다.
         </div>
+        <div style="margin-top: 10px; padding: 10px; background: #f8d7da; border-radius: 5px; font-size: 0.9em; color: #721c24;">
+          <i class="fas fa-exclamation-triangle"></i>
+          <strong>YouTube 주의:</strong> 서버 환경에서는 봇 감지로 인해 일부 영상이 다운로드되지 않을 수 있습니다. 이 경우 로컬에서 시도해주세요.
+        </div>
       </div>
       
       <div class="features">
@@ -591,17 +618,30 @@ def download():
     try:
         logger.info(f"다운로드 시작: {url} (플랫폼: {platform})")
         
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            # 먼저 정보만 추출해서 영상이 접근 가능한지 확인
-            try:
+        # YouTube의 경우 추가 시도
+        if 'youtube' in platform.lower() and (os.environ.get('RENDER') or os.environ.get('RENDER_SERVICE_NAME')):
+            logger.info("Render 환경에서 YouTube 다운로드 - 특별 설정 적용")
+            ydl_opts.update({
+                'no_check_certificates': True,
+                'prefer_insecure': True,
+                'geo_verification_proxy': None,
+                'source_address': '0.0.0.0',
+            })
+        
+        download_success = False
+        filename = None
+        base = None
+        
+        # 첫 번째 시도
+        try:
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                 logger.info("영상 정보 추출 시작...")
                 info = ydl.extract_info(url, download=False)
                 if not info:
-                    raise Exception("영상 정보를 가져올 수 없습니다. 링크를 확인해주세요.")
+                    raise Exception("영상 정보를 가져올 수 없습니다.")
                 
                 title = info.get('title', 'Unknown')
-                duration = info.get('duration', 'Unknown')
-                logger.info(f"영상 제목: {title}, 길이: {duration}초")
+                logger.info(f"영상 제목: {title}")
                 
                 # 실제 다운로드 실행
                 logger.info("실제 다운로드 시작...")
@@ -609,21 +649,94 @@ def download():
                 
                 # 다운로드된 파일 찾기
                 filename = ydl.prepare_filename(info)
-                if not filename or not os.path.exists(filename):
-                    # UUID 기반 파일명으로 대체
-                    filename = os.path.join(DOWNLOAD_FOLDER, f"{uuid.uuid4()}.mp4")
-                
                 if not filename.endswith('.mp4'):
                     filename = os.path.splitext(filename)[0] + '.mp4'
-                
-                base = os.path.basename(filename)
-                logger.info(f"다운로드 완료: {base}")
-                
-            except Exception as extract_error:
-                logger.error(f"영상 정보 추출 실패: {str(extract_error)}")
-                raise Exception(f"영상 정보를 가져올 수 없습니다: {str(extract_error)}")
+                    
+                if os.path.exists(filename):
+                    base = os.path.basename(filename)
+                    download_success = True
+                    logger.info(f"다운로드 완료: {base}")
+                    
+        except Exception as e:
+            logger.error(f"첫 번째 시도 실패: {str(e)}")
             
-        return render_template_string(HTML_FORM, filename=base)
+            # YouTube의 경우 여러 방법으로 재시도
+            if 'youtube' in platform.lower():
+                logger.info("YouTube 다운로드 재시도 - 봇 감지 우회 설정")
+                
+                # 방법 1: 모바일 User-Agent 사용
+                mobile_opts = {
+                    'format': 'best',
+                    'outtmpl': outtmpl,
+                    'quiet': False,
+                    'no_warnings': False,
+                    'extract_flat': False,
+                    'user_agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
+                    'http_headers': {
+                        'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0.3 Mobile/15E148 Safari/604.1',
+                        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                        'Accept-Language': 'en-us',
+                        'Accept-Encoding': 'gzip, deflate',
+                        'Connection': 'keep-alive',
+                    },
+                    'extractor_args': {
+                        'youtube': {
+                            'player_client': ['android', 'web'],
+                            'player_skip': ['webpage', 'config'],
+                        }
+                    },
+                }
+                
+                try:
+                    with yt_dlp.YoutubeDL(mobile_opts) as ydl:
+                        ydl.download([url])
+                        
+                        # 다운로드된 파일 찾기
+                        for file in os.listdir(DOWNLOAD_FOLDER):
+                            if file.startswith(os.path.basename(outtmpl).split('.')[0]):
+                                filename = os.path.join(DOWNLOAD_FOLDER, file)
+                                base = file
+                                download_success = True
+                                logger.info(f"모바일 UA로 다운로드 성공: {base}")
+                                break
+                                
+                except Exception as mobile_error:
+                    logger.error(f"모바일 UA 시도 실패: {str(mobile_error)}")
+                    
+                    # 방법 2: 임베드 페이지 사용
+                    if not download_success:
+                        logger.info("YouTube 다운로드 재시도 - 임베드 방식")
+                        embed_opts = {
+                            'format': 'best',
+                            'outtmpl': outtmpl,
+                            'quiet': False,
+                            'force_generic_extractor': False,
+                            'extractor_args': {
+                                'youtube': {
+                                    'player_client': ['web_embedded'],
+                                }
+                            },
+                        }
+                        
+                        try:
+                            with yt_dlp.YoutubeDL(embed_opts) as ydl:
+                                ydl.download([url])
+                                
+                                for file in os.listdir(DOWNLOAD_FOLDER):
+                                    if file.startswith(os.path.basename(outtmpl).split('.')[0]):
+                                        filename = os.path.join(DOWNLOAD_FOLDER, file)
+                                        base = file
+                                        download_success = True
+                                        logger.info(f"임베드 방식으로 다운로드 성공: {base}")
+                                        break
+                                        
+                        except Exception as embed_error:
+                            logger.error(f"임베드 방식도 실패: {str(embed_error)}")
+        
+        if download_success and base:
+            return render_template_string(HTML_FORM, filename=base)
+        else:
+            raise Exception("다운로드를 완료할 수 없습니다.")
         
     except Exception as e:
         error_msg = f"다운로드 실패: {str(e)}"
